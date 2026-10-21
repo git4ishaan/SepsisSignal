@@ -119,5 +119,33 @@ class TestAcceptance(unittest.TestCase):
         self.assertTrue(p2["probability"] < 0.8)
 
 
+def load_tests(loader, standard_tests, pattern):
+    """
+    Standard unittest discovery hook.
+    Builds the canonical full acceptance and regression suite:
+    - TestAcceptance (7 jury and causal checks)
+    - TestFutureRowInvariance (9 future-row invariance checks)
+    - TestNonFiniteHandling (5 non-finite measurement regression checks)
+    Total: 21 tests.
+    """
+    suite = unittest.TestSuite()
+    suite.addTests(loader.loadTestsFromTestCase(TestAcceptance))
+    from tests.test_t02_future_row_invariance import TestFutureRowInvariance
+    suite.addTests(loader.loadTestsFromTestCase(TestFutureRowInvariance))
+    from tests.test_non_finite_regression import TestNonFiniteHandling
+    suite.addTests(loader.loadTestsFromTestCase(TestNonFiniteHandling))
+    from tests.test_t05_prediction_immutability import TestT05PredictionImmutability
+    suite.addTests(loader.loadTestsFromTestCase(TestT05PredictionImmutability))
+    from tests.test_t06_socket_server import TestT06SocketProtocolAndResilience
+    suite.addTests(loader.loadTestsFromTestCase(TestT06SocketProtocolAndResilience))
+    from tests.test_t07_model_integrity import TestT07ModelLoadingAndIntegrity
+    suite.addTests(loader.loadTestsFromTestCase(TestT07ModelLoadingAndIntegrity))
+    from tests.test_t08_metric_reproduction import TestT08MetricReproduction
+    suite.addTests(loader.loadTestsFromTestCase(TestT08MetricReproduction))
+    from tests.test_t09_temporal_robustness import TestT09TemporalRobustness
+    suite.addTests(loader.loadTestsFromTestCase(TestT09TemporalRobustness))
+    return suite
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

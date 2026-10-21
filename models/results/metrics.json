@@ -2,33 +2,33 @@
   "models": [
     {
       "name": "Logistic Regression (live path)",
-      "auprc": 0.2840,
-      "precision": 0.2410,
-      "recall": 0.7650,
-      "specificity": 0.8820,
-      "threshold": 0.2500,
-      "alert_burden": "11.8 alerts per 100 patient-hours",
+      "auprc": 0.0775,
+      "precision": 0.0301,
+      "recall": 0.7374,
+      "specificity": 0.5849,
+      "threshold": 0.42,
+      "alert_burden": "42.1 alerts per 100 patient-hours",
       "notes": "Trained with 5 vital/lab signals (HR, SBP, Resp, Temp, WBC) and causal point-in-time features"
     },
     {
       "name": "XGBoost (offline)",
-      "auprc": 0.3420,
-      "precision": 0.2980,
-      "recall": 0.7920,
-      "specificity": 0.9010,
-      "threshold": 0.2800,
-      "alert_burden": "9.9 alerts per 100 patient-hours",
-      "notes": "Full benchmark feature set offline comparison"
+      "auprc": 0.0983,
+      "precision": 0.038,
+      "recall": 0.7644,
+      "specificity": 0.6613,
+      "threshold": 0.39,
+      "alert_burden": "34.6 alerts per 100 patient-hours",
+      "notes": "Offline comparison trained on identical splits and causal features with XGBoost hist tree method"
     },
     {
-      "name": "LSTM / GRU (offline, stretch)",
-      "auprc": "not yet computed",
-      "precision": "not yet computed",
-      "recall": "not yet computed",
-      "specificity": "not yet computed",
-      "threshold": "not yet computed",
-      "alert_burden": "not yet computed",
-      "notes": "Offline sequence model comparison"
+      "name": "LSTM / GRU (offline, stretch) - GRU",
+      "auprc": 0.2495,
+      "precision": 0.057,
+      "recall": 0.7531,
+      "specificity": 0.7603,
+      "threshold": 0.42,
+      "alert_burden": "24.9 alerts per 100 patient-hours",
+      "notes": "Offline sequence model (GRU) trained with causal sequence padding, max window 48h, and BCE positive weighting"
     }
   ],
   "disclaimer": "Research prototype, not for clinical decision-making. Evaluated on PhysioNet 2019 test split."

@@ -1,0 +1,6 @@
+{
+  "threshold": 0.42,
+  "chosen_on": "validation",
+  "model_type": "PyTorch GRU",
+  "selection_rule": "Targeted high recall (>=0.70) while maximizing F1 on validation set"
+}

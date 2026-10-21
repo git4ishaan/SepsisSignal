@@ -59,11 +59,11 @@ Full details: `docs/DATA_CONTRACT.md`
 Patient-level split, causal preprocessing, threshold chosen on validation data only, metrics on held-out patients.
 Rules: `docs/EVALUATION.md`. Results are read from `models/results/` and never typed by hand.
 
-| Model | AUPRC | Precision | Recall |
-|---|---|---|---|
-| Logistic Regression (live path) | [__] | [__] | [__] |
-| XGBoost / LightGBM (offline) | [__] | [__] | [__] |
-| LSTM / GRU (offline, stretch) | [__] | [__] | [__] |
+| Model | AUPRC | Precision | Recall | Specificity | Alert Burden |
+|---|---|---|---|---|---|
+| Logistic Regression (live path) | 0.0775 | 0.0301 | 0.7374 | 0.5849 | 42.1 / 100 patient-hours |
+| XGBoost / LightGBM (offline) | 0.0983 | 0.0380 | 0.7644 | 0.6613 | 34.6 / 100 patient-hours |
+| LSTM / GRU (offline, stretch) | 0.2495 | 0.0570 | 0.7531 | 0.7603 | 24.9 / 100 patient-hours |
 
 ## Tech stack
 Python (pandas, NumPy, scikit-learn, XGBoost or LightGBM, optional PyTorch), SQLite, FastAPI,

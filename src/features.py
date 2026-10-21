@@ -5,12 +5,27 @@ Only observations with hour <= T are ever accessed. No future lookahead.
 """
 
 import json
+import math
 import os
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 # Canonical signal list from the jury protocol (DATA_CONTRACT.md)
 SIGNALS = ["hr", "sbp", "resp", "temp", "wbc"]
+
+
+def _is_valid_measurement(val: Any) -> bool:
+    """
+    Check if a value is a valid, finite numerical measurement.
+    Safely normalizes input: returns False for None, NaN, +inf, -inf, or unparseable values.
+    """
+    if val is None:
+        return False
+    try:
+        f = float(val)
+        return math.isfinite(f)
+    except (ValueError, TypeError):
+        return False
 
 # Default training-set median fill values if imputer.json is not yet loaded
 DEFAULT_IMPUTER = {
@@ -116,7 +131,7 @@ def extract_features_point_in_time(
         history_vals: List[Tuple[int, float]] = []
         for r in causal_rows:
             v = r.get(sig)
-            if v is not None and not (isinstance(v, float) and np.isnan(v)):
+            if _is_valid_measurement(v):
                 history_vals.append((int(r["hour"]), float(v)))
 
         # Was it measured at target_hour?
@@ -124,7 +139,7 @@ def extract_features_point_in_time(
         val_now = None
         if current_row is not None:
             raw_v = current_row.get(sig)
-            if raw_v is not None and not (isinstance(raw_v, float) and np.isnan(raw_v)):
+            if _is_valid_measurement(raw_v):
                 measured_now = True
                 val_now = float(raw_v)
 
