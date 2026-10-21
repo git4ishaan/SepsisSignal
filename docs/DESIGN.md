@@ -17,29 +17,48 @@ No alarm styling: avoid saturated red and flashing elements. A model alert is no
 | `--muted` | Secondary text, rules | #6B7280 |
 | `--accent` | Primary accent (teal) | #0F766E |
 | `--blue` | Secondary accent | #3B6EA5 |
-| `--score` | Model risk line | #4F46E5 |
 | `--missing` | Not measured | #9CA3AF |
 | `--imputed` | Filled value | #D9A441 |
 | `--alert` | Threshold line and alert state (muted rose) | #B45F6B |
 | `--notice-bg` / `--notice-text` | Disclaimer banner | #FEF3C7 / #78350F |
 
 Keep the meaning of each color the same everywhere: measured, missing, imputed, model estimate.
+Model risk uses `--accent`; there is no separate score colour.
 Define dark values under `prefers-color-scheme: dark`. Check text contrast.
 
 ## Typography
-- Headlines: a clean serif (DM Serif Display or Fraunces)
-- Body: Inter
-- Numbers, probabilities, hours, metrics: JetBrains Mono
-- Sizes: titles 32 to 36, body 16 to 20 on screen, nothing below 12. Left aligned.
+- Headlines: a clean serif (DM Sans)
+- Body: DM Sans
+- Accents/Labels (use instead of monospaced/serif fonts): Rubik
+- Numbers, probabilities, hours, metrics: Rubik
 - Typographic apostrophes and quotes in all visible text.
 
+## Surfaces and controls
+One shape language for cards, tables, fields and buttons: **10px radius**, 1px `--border`,
+`--surface` fill, no shadows.
+- **Tables:** the rounded border wraps the whole table; the table title sits outside it.
+  Header cells use `--bg`, row dividers use `--border-light`, and rows get a `--bg` hover.
+  The model-estimate chart uses the same card shell; its label and hour range sit outside, w-fit and centered.
+- **Inputs:** 42px minimum height, 14px horizontal padding, same 10px radius and border.
+  Labels sit above the field, with units in parentheses.
+- **Selects:** a separate custom component (`dashboard/app/components/Select.tsx`), never the native
+  control. The trigger matches the inputs; its chevron sits 14px from the right edge. The listbox popover
+  uses the same 10px radius and 1px border, scrolls past 260px, highlights the active option with `--bg`,
+  and marks the selected option with a check. Keyboard: arrows, Home/End, Enter/Space, Escape, Tab.
+  The trigger keeps the same focus ring visible while its popover is open.
+- **Buttons:** same 10px radius and 1px border weight as the fields.
+- **Focus:** solid 2px `--border` ring, flush with the control (no offset, no accent colour).
+- Do not use pill shapes, filled grey fields, floating labels, inner shadows or drop shadows.
+
 ## Dashboard layout
+The disclaimer banner spans the full viewport width and sits flush at the top, with no outer padding.
 1. **Header:** SepsisSignal wordmark, live-path label, patient picker.
    Label text: "Live path: Logistic Regression baseline (research prototype)".
 2. **Clock:** slider or scrubber for hour T, step buttons (previous, next), current hour in mono type.
    At hour T show the probability (mono, large) and the alert state with a plain word ("alert" or "no alert").
-3. **Timeline:** vitals over time with missing points marked, imputed values distinct, risk score line with a
-   threshold line. Only data up to the selected hour is drawn, so the chart cannot show the future.
+3. **Timeline:** a model-estimate card and a vitals table (sparkline, typical range, current value, state).
+   Missing points are marked and imputed values are distinct. Only data up to the selected hour is drawn,
+   so the chart cannot show the future.
 4. **Legend:** measured, missing, imputed, model estimate, benchmark label (retrospective only).
 5. **Evaluation panel:** held-out comparison table read from `models/results/`, never typed by hand.
 6. **Footer on every page:** "Research prototype, not for clinical decision-making". Dataset citation.
