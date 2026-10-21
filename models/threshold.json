@@ -1,5 +1,5 @@
 {
-  "threshold": 0.2500,
+  "threshold": 0.42,
   "chosen_on": "validation",
-  "selection_rule": "Chosen on validation set for target recall 0.80 and constrained alert burden"
+  "selection_rule": "Targeted high recall (>=0.70) while maximizing F1 on validation set"
 }

@@ -15,8 +15,8 @@ Research prototype, not for clinical decision-making.
 
 ## Split
 - Patient-level only. A patient appears in exactly one of train, validation, test.
-- Split ratio: [__/__/__]   Random seed: [__]
-- Stratify by whether the patient ever has a positive label: [yes/no]
+- Split ratio: 70 / 15 / 15 (Train: 28,217 / Val: 6,046 / Test: 6,048 patients). Random seed: 42
+- Stratify by whether the patient ever has a positive label: no (patient-level random permutation)
 - Save the patient ID lists for each split in `models/splits/` so the split is reproducible.
 - Predictions for a patient must come from a model trained on OTHER patients.
 
@@ -27,8 +27,8 @@ Research prototype, not for clinical decision-making.
 - Rows with hour > T are never visible when predicting hour T.
 
 ## Threshold
-- Chosen on VALIDATION data only. Selection rule: [e.g. target recall, or max F-beta]
-- Final threshold: [__]. Stored with the model artifacts in `models/`.
+- Chosen on VALIDATION data only. Selection rule: Targeted high recall (>=0.70) while maximizing F1 on validation set.
+- Final threshold: 0.4200. Stored with the model artifacts in `models/threshold.json`.
 - Never retuned on the test set.
 
 ## Metrics (held-out test patients)
@@ -55,11 +55,11 @@ Report all of these, with the threshold above:
   batch features. Report the maximum difference. Do not hide mismatches.
 
 ## Results table (fill from saved result files only)
-| Model | AUPRC | Precision | Recall | Specificity | Threshold |
-|---|---|---|---|---|---|
-| Logistic Regression (live path) | [__] | [__] | [__] | [__] | [__] |
-| XGBoost / LightGBM (offline) | [__] | [__] | [__] | [__] | [__] |
-| LSTM / GRU (offline, stretch) | [__] | [__] | [__] | [__] | [__] |
+| Model | AUPRC | Precision | Recall | Specificity | Threshold | Alert Burden |
+|---|---|---|---|---|---|---|
+| Logistic Regression (live path) | 0.0775 | 0.0301 | 0.7374 | 0.5849 | 0.4200 | 42.1 / 100 patient-hours |
+| XGBoost / LightGBM (offline) | 0.0983 | 0.0380 | 0.7644 | 0.6613 | 0.3900 | 34.6 / 100 patient-hours |
+| LSTM / GRU (offline, stretch) | not yet computed | not yet computed | not yet computed | not yet computed | not yet computed | not yet computed |
 
 ## Limits to state every time
 - Retrospective public benchmark, may not match any real hospital.

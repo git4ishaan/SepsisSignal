@@ -136,8 +136,13 @@ def main():
         print(f"[ERROR] No .psv files found in {args.data_dir}")
         sys.exit(1)
 
-    print(f"[*] Found {len(files)} total patient files. Using first {min(args.max_patients, len(files))}...")
-    selected_files = files[: args.max_patients]
+    if args.max_patients and args.max_patients > 0:
+        count = min(args.max_patients, len(files))
+        print(f"[*] Found {len(files)} total patient files. Using first {count}...")
+        selected_files = files[:count]
+    else:
+        print(f"[*] Found {len(files)} total patient files. Using ALL {len(files)} patients...")
+        selected_files = files
     patient_files = {}
     for f in selected_files:
         pid = os.path.splitext(os.path.basename(f))[0]
@@ -212,13 +217,13 @@ def main():
     # Model
     model_path = os.path.join(args.output_dir, "model.joblib")
     joblib.dump(pipeline, model_path)
-    print(f"[✓] Saved model to {model_path}")
+    print(f"[OK] Saved model to {model_path}")
 
     # Imputer
     imputer_path = os.path.join(args.output_dir, "imputer.json")
     with open(imputer_path, "w", encoding="utf-8") as f:
         json.dump({k.upper(): v for k, v in imputer.items()}, f, indent=2)
-    print(f"[✓] Saved imputer to {imputer_path}")
+    print(f"[OK] Saved imputer to {imputer_path}")
 
     # Threshold
     thresh_path = os.path.join(args.output_dir, "threshold.json")
@@ -228,14 +233,14 @@ def main():
             "chosen_on": "validation",
             "selection_rule": "Targeted high recall (>=0.70) while maximizing F1 on validation set",
         }, f, indent=2)
-    print(f"[✓] Saved threshold to {thresh_path}")
+    print(f"[OK] Saved threshold to {thresh_path}")
 
     # Splits
     for name, ids in [("train", train_ids), ("val", val_ids), ("test", test_ids)]:
         split_file = os.path.join(args.output_dir, "splits", f"{name}_patients.txt")
         with open(split_file, "w", encoding="utf-8") as f:
             f.write("\n".join(ids))
-        print(f"[✓] Saved {name} split ({len(ids)} patients) to {split_file}")
+        print(f"[OK] Saved {name} split ({len(ids)} patients) to {split_file}")
 
     # Metrics
     metrics_path = os.path.join(args.output_dir, "results", "metrics.json")
@@ -275,7 +280,7 @@ def main():
             ],
             "disclaimer": "Research prototype, not for clinical decision-making. Evaluated on PhysioNet 2019 test split.",
         }, f, indent=2)
-    print(f"[✓] Saved evaluation metrics to {metrics_path}")
+    print(f"[OK] Saved evaluation metrics to {metrics_path}")
 
     print("\n[SUCCESS] All model artifacts generated successfully and ready for live serving!\n")
 

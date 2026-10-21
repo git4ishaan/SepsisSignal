@@ -1,0 +1,5 @@
+{
+  "threshold": 0.39,
+  "chosen_on": "validation",
+  "selection_rule": "Targeted high recall (>=0.70) while maximizing F1 on validation set"
+}
