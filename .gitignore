@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Local data & databases
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Frontend
+node_modules/
+.next/
+out/
+.env.local
+
+# Logs
+*.log

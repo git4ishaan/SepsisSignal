@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #F7F9FB;
+  --surface: #FFFFFF;
+  --text: #1A1A1A;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --accent: #0F766E;
+  --blue: #3B6EA5;
+  --score: #4F46E5;
+  --missing: #9CA3AF;
+  --imputed: #D9A441;
+  --alert: #B45F6B;
+  --notice-bg: #FEF3C7;
+  --notice-text: #78350F;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F141C;
+    --surface: #18202C;
+    --text: #F3F4F6;
+    --muted: #9CA3AF;
+    --border: #2D3748;
+    --border-light: #1F2937;
+    --accent: #14B8A6;
+    --blue: #60A5FA;
+    --score: #818CF8;
+    --missing: #6B7280;
+    --imputed: #FBBF24;
+    --alert: #E06D7A;
+    --notice-bg: #2D2412;
+    --notice-text: #FDE68A;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .serif-heading {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: inherit;
+}
