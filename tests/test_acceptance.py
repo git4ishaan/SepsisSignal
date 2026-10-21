@@ -10,8 +10,13 @@ Verifies all 6 mandatory jury checks defined in AGENTS.md and TASKS.md:
 """
 
 import os
+import sys
 import tempfile
 import pytest
+
+# Ensure repository root is on sys.path for direct pytest invocation
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.predict import predict
 from src.server import parse_and_process_line
 from src.store import init_db
@@ -70,6 +75,26 @@ def test_acceptance_check_1_immutability(clean_db):
     assert reply2_before == reply2_after, (
         f"Immutability violated!\nBefore: {reply2_before}\nAfter: {reply2_after}"
     )
+
+
+def test_acceptance_check_3_streaming_parity(clean_db):
+    """
+    Check 3: Streaming patient through the protocol produces identical results to single predict().
+    """
+    hours = [
+        (1, "H|P100|1|78|115|16|36.7|7.2\n"),
+        (2, "H|P100|2|82|118|17|36.8|7.5\n"),
+        (3, "H|P100|3|90|112|20|37.1|8.9\n"),
+    ]
+    for hr, line in hours:
+        sock_reply = parse_and_process_line(line, db_path=clean_db)
+        tokens = sock_reply.strip().split("|")
+        sock_prob = float(tokens[3])
+        sock_alert = int(tokens[4])
+
+        pred = predict("P100", hr, db_path=clean_db)
+        assert abs(pred["probability"] - sock_prob) < 1e-4, f"Probability mismatch at hour {hr}"
+        assert pred["alert"] == sock_alert, f"Alert mismatch at hour {hr}"
 
 
 def test_acceptance_check_5_unseen_patient(clean_db):

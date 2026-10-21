@@ -21,14 +21,14 @@
       "notes": "Offline comparison trained on identical splits and causal features with XGBoost hist tree method"
     },
     {
-      "name": "LSTM / GRU (offline, stretch)",
-      "auprc": "not yet computed",
-      "precision": "not yet computed",
-      "recall": "not yet computed",
-      "specificity": "not yet computed",
-      "threshold": "not yet computed",
-      "alert_burden": "not yet computed",
-      "notes": "Offline sequence model comparison"
+      "name": "LSTM / GRU (offline, stretch) - GRU",
+      "auprc": 0.2495,
+      "precision": 0.057,
+      "recall": 0.7531,
+      "specificity": 0.7603,
+      "threshold": 0.42,
+      "alert_burden": "24.9 alerts per 100 patient-hours",
+      "notes": "Offline sequence model (GRU) trained with causal sequence padding, max window 48h, and BCE positive weighting"
     }
   ],
   "disclaimer": "Research prototype, not for clinical decision-making. Evaluated on PhysioNet 2019 test split."

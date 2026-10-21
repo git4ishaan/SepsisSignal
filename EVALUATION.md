@@ -59,7 +59,7 @@ Report all of these, with the threshold above:
 |---|---|---|---|---|---|---|
 | Logistic Regression (live path) | 0.0775 | 0.0301 | 0.7374 | 0.5849 | 0.4200 | 42.1 / 100 patient-hours |
 | XGBoost / LightGBM (offline) | 0.0983 | 0.0380 | 0.7644 | 0.6613 | 0.3900 | 34.6 / 100 patient-hours |
-| LSTM / GRU (offline, stretch) | not yet computed | not yet computed | not yet computed | not yet computed | not yet computed | not yet computed |
+| LSTM / GRU (offline, stretch) | 0.2495 | 0.0570 | 0.7531 | 0.7603 | 0.4200 | 24.9 / 100 patient-hours |
 
 ## Limits to state every time
 - Retrospective public benchmark, may not match any real hospital.
