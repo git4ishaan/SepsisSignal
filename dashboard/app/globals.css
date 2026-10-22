@@ -166,6 +166,10 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
   body {
     background: #FFFFFF !important;
     color: #1A1A1A !important;
@@ -173,22 +177,71 @@
   body * {
     visibility: hidden;
   }
+  body:has(.print-report-overlay) > .dashboard-app-shell {
+    display: none !important;
+  }
   #printable-shift-report,
   #printable-shift-report * {
     visibility: visible;
   }
+  .print-report-overlay {
+    position: static !important;
+    display: block !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+  }
   #printable-shift-report {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: static !important;
     width: 100%;
+    max-width: none !important;
     margin: 0;
-    padding: 24px;
+    padding: 0;
     background: #FFFFFF !important;
     box-shadow: none !important;
     border: none !important;
     max-height: none !important;
     overflow: visible !important;
+    break-inside: auto;
+    page-break-inside: auto;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  #printable-shift-report > section {
+    margin-top: 18px !important;
+  }
+  #printable-shift-report h1 {
+    font-size: 18px !important;
+  }
+  #printable-shift-report h2 {
+    font-size: 11px !important;
+  }
+  #printable-shift-report svg {
+    height: 180px !important;
+  }
+  #printable-shift-report table {
+    font-size: 10.5px !important;
+  }
+  #printable-shift-report th,
+  #printable-shift-report td {
+    padding: 7px 8px !important;
+  }
+  #printable-shift-report > p {
+    margin-top: 16px !important;
+    font-size: 9px !important;
+  }
+  #printable-shift-report h1,
+  #printable-shift-report h2 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  #printable-shift-report tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
   .print-hidden {
     display: none !important;

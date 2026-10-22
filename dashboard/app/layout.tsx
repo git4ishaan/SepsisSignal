@@ -9,6 +9,11 @@ const rubik = Rubik({ subsets: ["latin"], variable: "--font-rubik" });
 export const metadata: Metadata = {
   title: "SepsisSignal — Explainable ICU Early-Warning Research Prototype",
   description: "Research prototype for studying early sepsis risk estimation on ICU time-series. Not for clinical decision-making.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

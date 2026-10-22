@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, FileText, X } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, FileText, Pause, Play, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Select from "./Select";
 import { useDashboardState } from "./DashboardState";
 import ShiftReportModal from "./ShiftReportModal";
+import { saveReport, type SavedReport } from "./reportStorage";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const API_WS_URL = process.env.NEXT_PUBLIC_WS_URL || `${API_BASE.replace(/^http/, "ws")}/ws`;
+const ADD_PATIENT_OPTION = "__add_new_patient__";
 
 function formatProtocolLine(form: ObservationForm): string {
   return ["H", form.patientId, form.hour, form.hr, form.sbp, form.resp, form.temp, form.wbc]
@@ -81,6 +83,12 @@ interface TimelineResponse {
   points: TimelinePoint[];
 }
 
+interface ModelContribution {
+  feature: string;
+  label: string;
+  contribution: number;
+}
+
 interface PredictResponse {
   patient_id: string;
   hour: number;
@@ -90,6 +98,7 @@ interface PredictResponse {
   model_name: string;
   threshold: number;
   live_path_label: string;
+  contributors?: ModelContribution[];
 }
 
 interface ModelMetric {
@@ -121,8 +130,6 @@ const SIGNALS: Signal[] = [
   { key: "temp", label: "Temperature", unit: "°C", normal: "36.5–37.5" },
   { key: "wbc", label: "WBC", unit: "10³/µL", normal: "4.5–11.0" },
 ];
-
-const LIVE_PATH_FALLBACK = "Live path: Logistic Regression baseline (research prototype)";
 
 const STATE_LABEL: Record<CellState, string> = {
   measured: "measured",
@@ -324,55 +331,59 @@ function HourScrubber({
     maxHour <= 1 ? 0 : Math.min(1, Math.max(0, (hour - 1) / (maxHour - 1))) * 100;
 
   return (
-    <div className="mt-[26px] flex max-w-[480px] items-center gap-2">
-      <button
-        type="button"
-        className="inline-flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-panel text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-rule disabled:cursor-not-allowed disabled:text-missing"
-        onClick={() => onChange(Math.max(1, hour - 1))}
-        disabled={hour <= 1}
-        aria-label="Previous hour"
-      >
-        <ChevronLeft size={18} strokeWidth={1.8} aria-hidden="true" />
-      </button>
-      <input
-        id={id}
-        className="hour-range h-6 min-w-[120px] flex-1 cursor-pointer"
-        type="range"
-        min={1}
-        max={Math.max(1, maxHour)}
-        value={Math.min(hour, Math.max(1, maxHour))}
-        onChange={(event) => onChange(Number.parseInt(event.target.value, 10))}
-        style={{ "--range-progress": `${progress}%` } as React.CSSProperties}
-        aria-label="Hour of stay"
-        aria-valuetext={`Hour ${hour} of ${maxHour}`}
-      />
-      <button
-        type="button"
-        className="inline-flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-panel text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-rule disabled:cursor-not-allowed disabled:text-missing"
-        onClick={() => onChange(Math.min(maxHour, hour + 1))}
-        disabled={hour >= maxHour}
-        aria-label="Next hour"
-      >
-        <ChevronRight size={18} strokeWidth={1.8} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        onClick={onTogglePlay}
-        className="inline-flex h-9 flex-none cursor-pointer items-center gap-1.5 rounded-panel border border-rule bg-surface px-3 text-xs font-medium text-ink transition-colors hover:bg-app focus-visible:outline-2 focus-visible:outline-rule"
-        title={isPlaying ? "Pause playback" : "Autoplay patient trajectory"}
-      >
-        {isPlaying ? (
-          <>
-            <span className="h-2 w-2 rounded-sm bg-alert animate-pulse" />
-            <span>Pause</span>
-          </>
-        ) : (
-          <>
-            <span className="text-[10px]">▶</span>
-            <span>Play</span>
-          </>
-        )}
-      </button>
+    <div className="mt-[26px] w-full max-w-[480px]">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="inline-flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-panel text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-rule disabled:cursor-not-allowed disabled:text-missing"
+          onClick={() => onChange(Math.max(1, hour - 1))}
+          disabled={hour <= 1}
+          aria-label="Previous hour"
+        >
+          <ChevronLeft size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+        <input
+          id={id}
+          className="hour-range h-6 min-w-[120px] flex-1 cursor-pointer"
+          type="range"
+          min={1}
+          max={Math.max(1, maxHour)}
+          value={Math.min(hour, Math.max(1, maxHour))}
+          onChange={(event) => onChange(Number.parseInt(event.target.value, 10))}
+          style={{ "--range-progress": `${progress}%` } as React.CSSProperties}
+          aria-label="Hour of stay"
+          aria-valuetext={`Hour ${hour} of ${maxHour}`}
+        />
+        <button
+          type="button"
+          className="inline-flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-panel text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-rule disabled:cursor-not-allowed disabled:text-missing"
+          onClick={() => onChange(Math.min(maxHour, hour + 1))}
+          disabled={hour >= maxHour}
+          aria-label="Next hour"
+        >
+          <ChevronRight size={18} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+      </div>
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={onTogglePlay}
+          className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-panel border border-rule bg-surface px-3 text-xs font-medium text-ink transition-colors hover:bg-app focus-visible:outline-2 focus-visible:outline-rule"
+          title={isPlaying ? "Pause playback" : "Autoplay patient trajectory"}
+        >
+          {isPlaying ? (
+            <>
+              <Pause size={14} strokeWidth={2} aria-hidden="true" />
+              <span>Pause</span>
+            </>
+          ) : (
+            <>
+              <Play size={14} strokeWidth={2} aria-hidden="true" />
+              <span>Play</span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
@@ -575,6 +586,7 @@ export default function SepsisSignalDashboard() {
   const patientSelectId = useId();
   const hourScrubberId = useId();
   const inputDialogRef = useRef<HTMLDialogElement>(null);
+  const addPatientDialogRef = useRef<HTMLDialogElement>(null);
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [maxHour, setMaxHour] = useState(1);
@@ -592,8 +604,12 @@ export default function SepsisSignalDashboard() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [inputOpen, setInputOpen] = useState(false);
-  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [newPatientId, setNewPatientId] = useState("");
+  const [newPatientError, setNewPatientError] = useState("");
+  const [activeReport, setActiveReport] = useState<SavedReport | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const selectedPatientExists = patients.some((patient) => patient.patient_id === selectedPatientId);
 
   function stopPlayback() {
     setIsPlaying(false);
@@ -642,6 +658,13 @@ export default function SepsisSignalDashboard() {
   }, [inputOpen]);
 
   useEffect(() => {
+    const dialog = addPatientDialogRef.current;
+    if (!dialog) return;
+    if (addPatientOpen && !dialog.open) dialog.showModal();
+    if (!addPatientOpen && dialog.open) dialog.close();
+  }, [addPatientOpen]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function load() {
@@ -677,16 +700,24 @@ export default function SepsisSignalDashboard() {
   useEffect(() => {
     if (patients.length === 0) return;
     const selected = patients.find((patient) => patient.patient_id === selectedPatientId);
-    const patient = selected ?? patients[0];
-    setMaxHour(patient.max_hour || 1);
-    if (!selected) {
-      setSelectedPatientId(patient.patient_id);
-      setCurrentHour(patient.max_hour || 1);
+    if (selected) {
+      setMaxHour(selected.max_hour || 1);
+    } else if (!selectedPatientId) {
+      const firstPatient = patients[0];
+      setMaxHour(firstPatient.max_hour || 1);
+      setSelectedPatientId(firstPatient.patient_id);
+      setCurrentHour(firstPatient.max_hour || 1);
     }
   }, [patients, selectedPatientId, setCurrentHour, setMaxHour, setSelectedPatientId]);
 
   useEffect(() => {
     if (!selectedPatientId) return;
+    if (!selectedPatientExists) {
+      setTimeline(null);
+      setPrediction(null);
+      setClockError(null);
+      return;
+    }
     const controller = new AbortController();
 
     async function loadHour() {
@@ -718,7 +749,7 @@ export default function SepsisSignalDashboard() {
 
     loadHour();
     return () => controller.abort();
-  }, [selectedPatientId, currentHour, revision]);
+  }, [selectedPatientId, selectedPatientExists, currentHour, revision]);
 
   useEffect(() => {
     if (status !== "ready") return;
@@ -770,6 +801,46 @@ export default function SepsisSignalDashboard() {
     setForm((previous) => ({ ...previous, patientId }));
     setMaxHour(found?.max_hour || 1);
     setCurrentHour(found?.max_hour || 1);
+  }
+
+  function openAddPatient() {
+    setNewPatientId("");
+    setNewPatientError("");
+    setAddPatientOpen(true);
+  }
+
+  function submitNewPatient(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const patientId = newPatientId.trim().toUpperCase();
+    if (!patientId) {
+      setNewPatientError("Enter a patient ID.");
+      return;
+    }
+    if (patientId.includes("|") || /[\r\n]/.test(patientId)) {
+      setNewPatientError("Patient IDs cannot contain a pipe or line break.");
+      return;
+    }
+
+    const existing = patients.find((patient) => patient.patient_id.toUpperCase() === patientId);
+    if (existing) {
+      choosePatient(existing.patient_id);
+    } else {
+      stopPlayback();
+      setSelectedPatientId(patientId);
+      setCurrentHour(1);
+      setMaxHour(1);
+      setTimeline(null);
+      setPrediction(null);
+      setClockError(null);
+      setReply("");
+      setForm({ ...EMPTY_OBSERVATION, patientId, hour: "1" });
+    }
+    setAddPatientOpen(false);
+  }
+
+  function handlePatientSelect(patientId: string) {
+    if (patientId === ADD_PATIENT_OPTION) openAddPatient();
+    else choosePatient(patientId);
   }
 
   function updateField(key: keyof ObservationForm, value: string) {
@@ -861,6 +932,14 @@ export default function SepsisSignalDashboard() {
   }
 
   const selectedPatient = patients.find((patient) => patient.patient_id === selectedPatientId);
+  const patientOptions = patients.map((patient) => ({
+    value: patient.patient_id,
+    label: `${patient.patient_id} · ${patient.split === "test" ? "test" : "live"}`,
+  }));
+  if (selectedPatientId && !selectedPatient) {
+    patientOptions.unshift({ value: selectedPatientId, label: `${selectedPatientId} · new` });
+  }
+  patientOptions.push({ value: ADD_PATIENT_OPTION, label: "+ Add new patient…" });
   const shownTimeline =
     timeline && timeline.patient_id === selectedPatientId && timeline.upto === currentHour
       ? timeline
@@ -872,9 +951,8 @@ export default function SepsisSignalDashboard() {
       ? prediction
       : null;
   const threshold = shownPrediction?.threshold ?? shownTimeline?.threshold ?? null;
-  const livePathLabel =
-    shownPrediction?.live_path_label ?? shownTimeline?.live_path_label ?? LIVE_PATH_FALLBACK;
   const alertActive = shownPrediction?.alert === 1;
+  const modelContributions = shownPrediction?.contributors ?? [];
 
   const riskSeries = useMemo(() => {
     const byHour = new Map<number, { hour: number; probability: number; alert: number }>();
@@ -897,6 +975,25 @@ export default function SepsisSignalDashboard() {
     return [...byHour.values()].sort((a, b) => a.hour - b.hour);
   }, [shownTimeline, shownPrediction, currentHour]);
 
+  function generateReport() {
+    const report: SavedReport = {
+      id: window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      generatedAt: new Date().toISOString(),
+      patientId: selectedPatientId,
+      currentHour,
+      maxHour,
+      split: patients.find((patient) => patient.patient_id === selectedPatientId)?.split ?? "test",
+      prediction: shownPrediction ? { ...shownPrediction } : null,
+      timelinePoints: (shownTimeline?.points ?? []).map((point) => ({
+        ...point,
+        values: { ...point.values },
+        missing: [...point.missing],
+      })),
+    };
+    saveReport(report);
+    setActiveReport(report);
+  }
+
   return (
     <>
       <main className="mx-auto max-w-[1080px] px-8 pt-8 pb-[72px] max-[860px]:px-5 max-[860px]:pb-14">
@@ -907,26 +1004,20 @@ export default function SepsisSignalDashboard() {
           <label className="shrink-0 font-label text-[11px] font-medium text-muted" htmlFor={patientSelectId}>
             Patient
           </label>
-          {patients.length > 0 ? (
-            <Select
-              id={patientSelectId}
-              value={selectedPatientId}
-              options={patients.map((patient) => ({
-                value: patient.patient_id,
-                label: `${patient.patient_id} · ${patient.split === "test" ? "test" : "live"}`,
-              }))}
-              onChange={choosePatient}
-              ariaLabel="Patients"
-            />
-          ) : (
-            <span className="text-[13px] text-muted">No patient records</span>
-          )}
+          <Select
+            id={patientSelectId}
+            value={selectedPatientId}
+            options={patientOptions}
+            onChange={handlePatientSelect}
+            ariaLabel="Patients"
+            placeholder={patients.length > 0 ? "Select patient" : "Select or add a patient"}
+          />
           {activePage === "overview" && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 rounded-panel border border-rule bg-surface px-3.5 text-[13px] font-medium text-ink transition-colors hover:bg-app"
-                onClick={() => setIsReportOpen(true)}
+                onClick={generateReport}
               >
                 <FileText size={15} strokeWidth={2} aria-hidden="true" />
                 Export report
@@ -980,7 +1071,7 @@ export default function SepsisSignalDashboard() {
         </div>
 
         <div
-          className="pl-12 max-[860px]:pl-0"
+          className="border-l border-rule pl-12 max-[860px]:border-l-0 max-[860px]:pl-0"
           aria-live="polite"
         >
           <p className="font-label text-[11px] font-medium uppercase tracking-[0.07em] text-muted">
@@ -1012,10 +1103,30 @@ export default function SepsisSignalDashboard() {
           </div>
           {shownPrediction && (
             <p className="mt-3 text-xs text-muted">
-              {shownPrediction.empty_count} empty {shownPrediction.empty_count === 1 ? "field" : "fields"} · {shownPrediction.model_name}
+              {shownPrediction.empty_count} {shownPrediction.empty_count === 1 ? "field" : "fields"} missing · {shownPrediction.model_name === "logistic_regression_baseline" ? "Logistic Regression baseline" : shownPrediction.model_name}
             </p>
           )}
-          <p className="mt-2 text-[11px] text-muted">{livePathLabel}</p>
+          {modelContributions.length > 0 && (
+            <section className="mt-4" aria-labelledby="contributions-heading">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 id="contributions-heading" className="text-[14px] font-semibold tracking-[-0.01em] text-ink">Model contributions</h2>
+                <span className="font-label text-[9px] font-medium uppercase tracking-[0.07em] text-muted">log-odds</span>
+              </div>
+              <ul className="mt-2.5 flex flex-col gap-2">
+                {modelContributions.slice(0, 3).map((item) => {
+                  const positive = item.contribution >= 0;
+                  return (
+                    <li key={item.feature} className="flex min-w-0 items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate text-[11px] text-muted" title={item.label}>{item.label}</span>
+                      <span className={`shrink-0 font-label text-[13px] font-semibold tabular-nums ${positive ? "text-alert" : "text-accent"}`}>
+                        {positive ? "+" : "−"}{Math.abs(item.contribution).toFixed(3)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
           {clockError && <p className="mt-1.5 text-xs text-alert">{clockError}</p>}
         </div>
       </section>}
@@ -1260,15 +1371,71 @@ export default function SepsisSignalDashboard() {
         </div>
       </dialog>
 
+      <dialog
+        ref={addPatientDialogRef}
+        aria-labelledby="add-patient-dialog-title"
+        className="m-auto w-[min(420px,calc(100vw_-_32px))] rounded-panel border border-rule bg-surface p-6 text-ink shadow-xl backdrop:bg-black/35"
+        onClose={() => setAddPatientOpen(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setAddPatientOpen(false);
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="add-patient-dialog-title" className="text-lg font-semibold tracking-tight">Add patient</h2>
+            <p className="mt-1 text-[13px] text-muted">A saved patient record appears after the first observation is sent.</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-panel text-muted hover:bg-app hover:text-ink focus-visible:outline-2 focus-visible:outline-rule"
+            onClick={() => setAddPatientOpen(false)}
+            aria-label="Close add patient dialog"
+          >
+            <X size={18} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        </div>
+        <form className="mt-5" onSubmit={submitNewPatient}>
+          <label className="flex flex-col gap-1.5 text-[13px] font-medium" htmlFor="new-patient-id">
+            Patient ID
+            <input
+              id="new-patient-id"
+              autoFocus
+              value={newPatientId}
+              onChange={(event) => setNewPatientId(event.target.value)}
+              placeholder="e.g. P004"
+              autoComplete="off"
+              className="min-h-[42px] rounded-panel border border-rule bg-surface px-3.5 text-[13px] font-normal text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-rule"
+            />
+          </label>
+          {newPatientError && <p className="mt-2 text-xs text-alert" role="alert">{newPatientError}</p>}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              className="min-h-[40px] cursor-pointer rounded-panel px-3 text-[13px] text-muted hover:bg-app hover:text-ink"
+              onClick={() => setAddPatientOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="min-h-[40px] cursor-pointer rounded-panel bg-accent px-4 text-[13px] font-medium text-surface hover:opacity-90"
+            >
+              Continue
+            </button>
+          </div>
+        </form>
+      </dialog>
+
       <ShiftReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        patientId={selectedPatientId}
-        currentHour={currentHour}
-        maxHour={maxHour}
-        split={patients.find((p) => p.patient_id === selectedPatientId)?.split ?? "test"}
-        prediction={shownPrediction}
-        timelinePoints={shownTimeline?.points ?? []}
+        isOpen={activeReport !== null}
+        onClose={() => setActiveReport(null)}
+        patientId={activeReport?.patientId ?? ""}
+        currentHour={activeReport?.currentHour ?? currentHour}
+        maxHour={activeReport?.maxHour ?? maxHour}
+        split={activeReport?.split ?? "test"}
+        prediction={activeReport?.prediction ?? null}
+        timelinePoints={activeReport?.timelinePoints ?? []}
+        generatedAt={activeReport?.generatedAt}
       />
     </>
   );

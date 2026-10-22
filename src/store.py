@@ -92,22 +92,26 @@ def get_observations_up_to(
     patient_id: str,
     hour: int,
     db_path: str = DB_PATH,
+    received_before: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Retrieve all observations for patient_id with hour <= requested hour, ordered by hour ASC.
+    Retrieve observations through the requested hour, optionally limited to rows
+    received no later than a stored prediction timestamp.
     Guarantees strict causal query: observations from future hours are never returned.
     """
     with get_connection(db_path) as conn:
         cur = conn.cursor()
-        cur.execute(
-            """
+        query = """
             SELECT patient_id, hour, hr, sbp, resp, temp, wbc, received_at
             FROM observations
             WHERE patient_id = ? AND hour <= ?
-            ORDER BY hour ASC;
-            """,
-            (patient_id, hour),
-        )
+        """
+        params = [patient_id, hour]
+        if received_before is not None:
+            query += " AND received_at <= ?"
+            params.append(received_before)
+        query += " ORDER BY hour ASC;"
+        cur.execute(query, params)
         rows = cur.fetchall()
         return [dict(row) for row in rows]
 

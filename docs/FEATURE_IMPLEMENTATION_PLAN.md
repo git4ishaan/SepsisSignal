@@ -3,14 +3,13 @@
 > **Standard of Quality**: Zero regressions, strict causal isolation, robust null handling, and editorial design consistency.  
 > **Target Audience**: Team HackerSIM (ICU Early-Warning Research Prototype).
 
-This plan covers four optional demo features. The priority order below reflects hackathon jury value, implementation effort, and risk of unsupported clinical claims. Phase numbers below are section identifiers, not execution order. Ownership is split between Ishaan (features 1–2) and the project team (features 3–4).
+This plan covers three optional demo features. The priority order below reflects hackathon jury value, implementation effort, and risk of unsupported clinical claims. Phase numbers below are section identifiers, not execution order. Ownership is split between Ishaan (features 1–2) and the project team (feature 3).
 
 | Priority | Feature | Owner | Value | Recommendation |
 |---|---|---|---|---|
 | **P1** | Patient-stay playback (Phase 1) | Ishaan | High demo value; low implementation risk | Implement first. It replays stored hours; call it playback unless it actually inserts new observations. |
 | **P2** | Model contribution display (Phase 3) | Project team | Medium–high; supports explainability | Implement after the jury path. Use exact model preprocessing and describe contributions as model behavior, not clinical causes. |
-| **P3** | qSOFA/SIRS comparison (Phase 4) | Project team | Potentially high; substantial validity risk | Implement only as descriptive available criteria; represent incomplete inputs honestly and make no lead-time claim without held-out evaluation. |
-| **P4** | Research trajectory summary / PDF (Phase 2) | Ishaan | Medium–low; more effort and less jury alignment | Defer until higher-priority work is complete. Avoid presenting it as a clinical handover tool. |
+| **P3** | Research trajectory summary / PDF (Phase 2) | Ishaan | Medium–low; more effort and less jury alignment | Defer until higher-priority work is complete. Avoid presenting it as a clinical handover tool. |
 
 ## Ownership
 
@@ -19,13 +18,12 @@ This plan covers four optional demo features. The priority order below reflects 
 | 1 | Patient-stay playback | Ishaan |
 | 2 | Research trajectory summary / PDF | Ishaan |
 | 3 | Model contributions | Project team |
-| 4 | Available qSOFA / SIRS criteria | Project team |
 
 Ownership is separate from priority. The assigned owner should follow the priority order and keep the jury evaluation path as the first acceptance gate.
 
 ## First Priority: Preserve the Jury Evaluation Path
 
-These are acceptance requirements, not optional roadmap features. Keep them ahead of the four enhancements:
+These are acceptance requirements, not optional roadmap features. Keep them ahead of the three enhancements:
 
 - Accept one `H|...` record and return one `R|...` result through the chosen WebSocket or raw TCP transport.
 - Store each patient-hour in SQLite before inference; count empty signal fields before imputation.
@@ -431,14 +429,18 @@ Add button next to "Live input" in header:
 
 ## Phase 3: Model Contributions ("What Influenced the Score?")
 
+**Status: Implemented; focused backend verification passed.**
+
 ### 1. Objective & Value
 Show the largest positive model contributions to the prediction at hour $T$. This helps explain how the Logistic Regression model produced its score; it does not establish clinical causation or identify validated physiological drivers.
 
 ### 2. Architecture & Data Flow
-* **File Affected**: [`src/predict.py`](file:///d:/SepsisSignal/src/predict.py) & [`dashboard/app/components/Dashboard.tsx`](file:///d:/SepsisSignal/dashboard/app/components/Dashboard.tsx)
+* **Files Affected**: [`src/predict.py`](file:///d:/SepsisSignal/src/predict.py), [`src/store.py`](file:///d:/SepsisSignal/src/store.py), and [`dashboard/app/components/Dashboard.tsx`](file:///d:/SepsisSignal/dashboard/app/components/Dashboard.tsx).
 * **Math Foundation**: For Logistic Regression, a feature's contribution to the model logit is:
   $$\text{contribution}_i = w_i \times x_i$$
-where $w_i$ is the trained model coefficient and $x_i$ is that feature after the model's exact serving-time preprocessing. Compute contributions in the same feature space used by `predict_proba`; do not independently refit or approximate preprocessing.
+  where $w_i$ is the trained model coefficient and $x_i$ is that feature after the model's exact serving-time preprocessing. Compute contributions in the same feature space used by `predict_proba`; do not independently refit or approximate preprocessing.
+
+The current saved pipeline is `StandardScaler` followed by the `clf` Logistic Regression step. The implementation uses those exact steps and the canonical feature order from `src.features.FEATURE_NAMES`. For an already-cached prediction, it reconstructs the input from observations received by the time that prediction was created, so later hours cannot alter the explanation. Attribution is supplemental and must not block or change the risk estimate.
 
 ### 3. Step-by-Step Implementation
 
@@ -451,7 +453,7 @@ def explain_prediction(model, feature_vec, feature_names, top_k=3):
     """
     # LogisticRegression pipeline: extract final estimator coefficients
     try:
-        classifier = model.named_steps["classifier"] if hasattr(model, "named_steps") else model
+        classifier = model.named_steps["clf"]
         scaler = model.named_steps.get("scaler", None) if hasattr(model, "named_steps") else None
         
         # If scaler exists, scale feature vector; otherwise use raw
@@ -460,7 +462,7 @@ def explain_prediction(model, feature_vec, feature_names, top_k=3):
         
         contributions = x * coefs
         
-        # Feature name mapping to clinical labels
+        # Feature name mapping to neutral display labels
         label_map = {
             "hr_val": "Heart rate level",
             "hr_delta": "Heart rate acceleration",
@@ -476,13 +478,12 @@ def explain_prediction(model, feature_vec, feature_names, top_k=3):
         }
         
         indexed_contribs = []
-        for name, val, contrib in zip(feature_names, feature_vec[0], contributions):
-            if name in label_map and contrib > 0.05:  # Only positive model contributions
+        for name, contrib in zip(feature_names, contributions):
+            if name in label_map and contrib > 0:
                 indexed_contribs.append({
                     "feature": name,
                     "label": label_map[name],
                     "contribution": round(float(contrib), 3),
-                    "value": round(float(val), 2),
                 })
         
         # Sort descending by contribution
@@ -495,84 +496,35 @@ def explain_prediction(model, feature_vec, feature_names, top_k=3):
 #### B. Return in `/predict` and Show in UI
 Add `contributors` to the `/predict` dictionary response:
 ```python
-"contributors": explain_prediction(model, feature_vec, get_feature_names()),
+"contributors": get_model_contributions(feature_vec),
 ```
 In `Dashboard.tsx`, render directly under the probability:
 ```tsx
-{shownPrediction?.contributors && shownPrediction.contributors.length > 0 && (
-  <div className="mt-3.5 space-y-1.5 border-t border-rule pt-3">
-    <p className="font-label text-[10px] font-medium uppercase tracking-wider text-muted">
-      Key Contributing Drivers
+{!!shownPrediction?.contributors?.length && (
+  <div className="mt-4 border-t border-rule pt-3">
+    <p className="font-label text-[10px] font-medium uppercase tracking-[0.07em] text-muted">
+      Model contributions · log-odds
     </p>
-    <div className="flex flex-wrap gap-1.5">
-      {shownPrediction.contributors.map((c) => (
-        <span
-          key={c.feature}
-          className="inline-flex items-center gap-1 rounded bg-app px-2 py-0.5 text-xs text-ink"
-        >
-          <span className="text-alert font-bold">▲</span> {c.label} (+{c.contribution})
-        </span>
+    <ul className="mt-2 grid gap-1.5 text-xs">
+      {shownPrediction.contributors.map((item) => (
+        <li key={item.feature} className="flex items-center justify-between gap-4">
+          <span>{item.label}</span>
+          <span className="font-label tabular-nums text-muted">+{item.contribution.toFixed(3)}</span>
+        </li>
       ))}
-    </div>
+    </ul>
+    <p className="mt-2 text-[10px] leading-relaxed text-muted">
+      Positive values raise model log-odds; these are model contributions, not clinical causes.
+    </p>
   </div>
 )}
 ```
 
 ---
 
-## Phase 4: Available qSOFA / SIRS Criteria (Conditional)
+## Phase 4: qSOFA / SIRS Criteria (Dropped)
 
-### 1. Objective & Value
-Consider showing available qSOFA and SIRS criteria at hour $T$ as descriptive context. Do not claim a standard-of-care comparison or lead-time advantage unless the complete criteria are available and the comparison has been measured on held-out patients. This feature is conditional on clinical validity review.
-
-### 2. Clinical Rules Definition
-1. **qSOFA components available in this input** (not a complete qSOFA score):
-   - Resp Rate $\ge 22$ breaths/min (+1)
-   - Systolic BP $\le 100$ mmHg (+1)
-   - Mental status is not among the five input signals, so the complete qSOFA score cannot be calculated. Do not label these two components as a complete qSOFA-positive/negative result or apply the complete-score interpretation.
-2. **SIRS** (Systemic Inflammatory Response Syndrome):
-   - Heart Rate $> 90$ bpm (+1)
-   - Temperature $> 38.0^\circ\text{C}$ or $< 36.0^\circ\text{C}$ (+1)
-   - Resp Rate $> 20$ breaths/min (+1)
-   - WBC $> 12.0$ or $< 4.0\times 10^3/\mu\text{L}$ (+1; band count is unavailable).
-   - Mark criteria with missing inputs as unknown. Any threshold interpretation must state these input limitations.
-
-Do not claim a 3–5 hour lead-time advantage in UI copy without evidence. If the team wants to make that claim, define the comparison in advance and calculate it on the held-out patient cohort.
-
-### 3. Implementation in `Dashboard.tsx`
-```tsx
-function computeClinicalBaselines(values: PointValues) {
-  let qsofa = 0;
-  let qsofaAvailable = 0;
-  if (values.resp !== null) { qsofaAvailable++; if (values.resp >= 22) qsofa++; }
-  if (values.sbp !== null) { qsofaAvailable++; if (values.sbp <= 100) qsofa++; }
-
-  let sirs = 0;
-  let sirsAvailable = 0;
-  if (values.hr !== null) { sirsAvailable++; if (values.hr > 90) sirs++; }
-  if (values.temp !== null) { sirsAvailable++; if (values.temp > 38.0 || values.temp < 36.0) sirs++; }
-  if (values.resp !== null) { sirsAvailable++; if (values.resp > 20) sirs++; }
-  if (values.wbc !== null) { sirsAvailable++; if (values.wbc > 12.0 || values.wbc < 4.0) sirs++; }
-
-  return {
-    qsofaComponents: { met: qsofa, available: qsofaAvailable, complete: false },
-    sirsCriteria: { met: sirs, available: sirsAvailable, bandCountAvailable: false },
-  };
-}
-```
-
-Render alongside threshold:
-```tsx
-<div className="mt-3 flex items-center gap-3 text-xs">
-  <span className="text-muted">Standard criteria:</span>
-  <span className="rounded px-1.5 py-0.5 text-[11px] bg-app text-muted">
-    qSOFA components met: {qsofaComponents.met}/{qsofaComponents.available} · incomplete (mental status unavailable)
-  </span>
-  <span className="rounded px-1.5 py-0.5 text-[11px] bg-app text-muted">
-    SIRS criteria met: {sirsCriteria.met}/{sirsCriteria.available} assessed · band count unavailable
-  </span>
-</div>
-```
+Do not include qSOFA or SIRS in the dashboard. They are not required by the jury path, the available patient-hour input cannot calculate either set completely, and presenting partial criteria adds clinical interpretation risk without explaining the model prediction. Revisit only if the team obtains complete inputs and a clear evaluation goal.
 
 ---
 
@@ -581,8 +533,7 @@ Render alongside threshold:
 | Priority | Feature | Verification focus | Main risk |
 |---|---|---|---|
 | **P1** | Patient-stay playback — Ishaan | Playback stops at the available hour; manual scrub and patient change stop playback. | Confusing replay with incoming live telemetry. |
-| **P2** | Model contributions — Project team | Calculation uses the serving model's exact transformed feature vector and agrees with its logit. | Mislabeling a model contribution as causation or clinical explanation. |
-| **P3** | Available clinical criteria — Project team | Missing inputs show as unknown; partial qSOFA components are not presented as a complete score; no unsupported lead-time statement. | Incomplete criteria or an unsubstantiated comparison. |
-| **P4** | Research trajectory summary / PDF — Ishaan | Values are limited to hour T, missing values are clear, and print output retains the research disclaimer. | Clinical workflow implications and stale or misleading report data. |
+| **P2** | Model contributions — Project team | Each displayed value matches its coefficient times the serving model's transformed feature value. | Mislabeling a model contribution as causation or clinical explanation. |
+| **P3** | Research trajectory summary / PDF — Ishaan | Values are limited to hour T, missing values are clear, and print output retains the research disclaimer. | Clinical workflow implications and stale or misleading report data. |
 
-Implement in priority order after the jury path is confirmed. Defer P3 unless its criteria and claims can be validated; P4 is optional demo polish.
+Implement in priority order after the jury path is confirmed. qSOFA/SIRS criteria are dropped from the dashboard; do not add them without complete inputs and a clear, validated evaluation purpose.

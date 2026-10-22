@@ -24,6 +24,7 @@ from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
     confusion_matrix,
+    precision_recall_curve,
     precision_recall_fscore_support,
     roc_auc_score,
 )
@@ -170,34 +171,37 @@ def find_optimal_threshold(
     probs: np.ndarray,
     target_recall: float = 0.70,
 ) -> Tuple[float, Dict[str, float]]:
-    """Select threshold on validation set targeted at Recall >= target_recall maximizing F1."""
-    best_thresh = 0.40
-    best_f1 = -1.0
-    best_stats = {}
+    """Select a validation threshold by the recall constraint, without a fixed grid."""
+    precision, recall, thresholds = precision_recall_curve(targets, probs)
+    if thresholds.size == 0:
+        return 1.0, {"precision": 0.0, "recall": 0.0, "f1": 0.0}
 
-    threshold_grid = np.linspace(0.05, 0.85, 161)
+    # The final precision/recall pair has no corresponding threshold. For each
+    # actual threshold, scores are classified positive when probability >= it.
+    precision = precision[:-1]
+    recall = recall[:-1]
+    f1 = np.divide(
+        2.0 * precision * recall,
+        precision + recall,
+        out=np.zeros_like(precision),
+        where=(precision + recall) > 0,
+    )
 
-    for t in threshold_grid:
-        t_val = round(float(t), 4)
-        preds = (probs >= t_val).astype(int)
-        prec, rec, f1, _ = precision_recall_fscore_support(targets, preds, average="binary", zero_division=0)
-        if rec >= target_recall and f1 > best_f1:
-            best_f1 = f1
-            best_thresh = t_val
-            best_stats = {"precision": float(prec), "recall": float(rec), "f1": float(f1)}
+    eligible = np.flatnonzero(recall >= target_recall)
+    candidates = eligible if eligible.size else np.arange(thresholds.size)
+    best_idx = int(candidates[np.argmax(f1[candidates])])
+    threshold = round(float(thresholds[best_idx]), 4)
 
-    # Fallback to max F1 if target recall is unreachable
-    if best_f1 < 0:
-        for t in threshold_grid:
-            t_val = round(float(t), 4)
-            preds = (probs >= t_val).astype(int)
-            prec, rec, f1, _ = precision_recall_fscore_support(targets, preds, average="binary", zero_division=0)
-            if f1 > best_f1:
-                best_f1 = f1
-                best_thresh = t_val
-                best_stats = {"precision": float(prec), "recall": float(rec), "f1": float(f1)}
-
-    return best_thresh, best_stats
+    # Recompute at the rounded threshold so the saved stats match the artifact.
+    preds = (probs >= threshold).astype(int)
+    prec, rec, score, _ = precision_recall_fscore_support(
+        targets, preds, average="binary", zero_division=0
+    )
+    return threshold, {
+        "precision": float(prec),
+        "recall": float(rec),
+        "f1": float(score),
+    }
 
 
 def compute_metrics_for_predictions(
