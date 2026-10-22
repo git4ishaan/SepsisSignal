@@ -1,12 +1,53 @@
 "use client";
 
-import React, { useEffect, useId, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Activity, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Select from "./Select";
 import { useDashboardState } from "./DashboardState";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_WS_URL = process.env.NEXT_PUBLIC_WS_URL || `${API_BASE.replace(/^http/, "ws")}/ws`;
+
+function formatProtocolLine(form: ObservationForm): string {
+  return ["H", form.patientId, form.hour, form.hr, form.sbp, form.resp, form.temp, form.wbc]
+    .map((value) => value.trim())
+    .join("|");
+}
+
+function sendProtocolLine(line: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(API_WS_URL);
+    let settled = false;
+    const timeout = window.setTimeout(
+      () => finish(new Error("WebSocket request timed out")),
+      120_000
+    );
+
+    function finish(error?: Error, reply?: string) {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      socket.close();
+      if (error) reject(error);
+      else resolve(reply ?? "");
+    }
+
+    socket.addEventListener("open", () => {
+      if (settled) return;
+      try {
+        socket.send(`${line}\n`);
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error("Could not send WebSocket message"));
+      }
+    }, { once: true });
+    socket.addEventListener("message", (event) => finish(undefined, String(event.data)), { once: true });
+    socket.addEventListener("error", () => finish(new Error("WebSocket connection failed")), { once: true });
+    socket.addEventListener("close", () => {
+      if (!settled) finish(new Error("WebSocket closed before a reply arrived"));
+    }, { once: true });
+  });
+}
 
 interface Patient {
   patient_id: string;
@@ -417,13 +458,100 @@ function SignalTrend({ cells, cutoff, label }: { cells: SignalCell[]; cutoff: nu
   );
 }
 
+function ObservationEntry({
+  form,
+  onSubmit,
+  onChange,
+  onFillBlanks,
+  sending,
+  reply,
+}: {
+  form: ObservationForm;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onChange: (key: keyof ObservationForm, value: string) => void;
+  onFillBlanks: () => void;
+  sending: boolean;
+  reply: string;
+}) {
+  const protocolLine = formatProtocolLine(form);
+
+  return (
+    <>
+      <form onSubmit={onSubmit}>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+          {OBSERVATION_FIELDS.map((field) => (
+            <label key={field.key} className="flex min-w-0 flex-col gap-1.5">
+              <span className="font-label text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted">
+                {field.label}
+                {field.unit && (
+                  <span className="ml-1 font-normal normal-case tracking-normal">
+                    ({field.unit})
+                  </span>
+                )}
+              </span>
+              <input
+                className={FIELD_INPUT}
+                type="text"
+                inputMode={field.inputMode}
+                value={form[field.key]}
+                onChange={(event) => onChange(field.key, event.target.value)}
+                placeholder={field.placeholder}
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-5">
+          <p className="font-label text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted">
+            WebSocket message · jury input line
+          </p>
+          <code className="mt-1.5 block overflow-x-auto whitespace-nowrap font-label text-[12px] text-muted">
+            {protocolLine}
+          </code>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-2.5">
+          <button
+            type="submit"
+            className="min-h-[42px] cursor-pointer rounded-panel border border-accent bg-accent px-[18px] text-[13px] font-medium text-surface disabled:cursor-progress disabled:opacity-60"
+            disabled={sending}
+          >
+            {sending ? "Sending…" : "Send line"}
+          </button>
+          <button
+            type="button"
+            className="min-h-[42px] cursor-pointer rounded-panel border border-rule bg-transparent px-3.5 text-[13px] text-muted hover:text-ink"
+            onClick={onFillBlanks}
+          >
+            3 blanks
+          </button>
+          <span className="font-label text-[11px] text-muted">Blank = missing.</span>
+        </div>
+      </form>
+
+      {reply && (
+        <p
+          className="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-panel border border-rule border-l-[3px] border-l-accent bg-surface px-3.5 py-3 font-label text-[12.5px] data-[error=true]:border-l-alert data-[error=true]:text-alert"
+          data-error={reply.startsWith("E|")}
+          role="status"
+        >
+          {reply}
+        </p>
+      )}
+    </>
+  );
+}
+
 export default function SepsisSignalDashboard() {
   const pathname = usePathname();
-  const activePage = pathname === "/live" ? "live" : pathname === "/evaluation" ? "evaluation" : "overview";
-  const pageTitle = activePage === "live" ? "Live input" : activePage === "evaluation" ? "Evaluation" : "Overview";
+  const activePage = pathname === "/evaluation" ? "evaluation" : "overview";
+  const pageTitle = activePage === "evaluation" ? "Evaluation" : "Overview";
   const { selectedPatientId, setSelectedPatientId, currentHour, setCurrentHour } = useDashboardState();
   const patientSelectId = useId();
   const hourScrubberId = useId();
+  const inputDialogRef = useRef<HTMLDialogElement>(null);
 
   const [patients, setPatients] = useState<Patient[]>([]);
   const [maxHour, setMaxHour] = useState(1);
@@ -440,6 +568,14 @@ export default function SepsisSignalDashboard() {
   }));
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [inputOpen, setInputOpen] = useState(false);
+
+  useEffect(() => {
+    const dialog = inputDialogRef.current;
+    if (!dialog) return;
+    if (inputOpen && !dialog.open) dialog.showModal();
+    if (!inputOpen && dialog.open) dialog.close();
+  }, [inputOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -452,11 +588,6 @@ export default function SepsisSignalDashboard() {
         if (cancelled) return;
         const list: Patient[] = data.patients ?? [];
         setPatients(list);
-        if (list.length > 0) {
-          setSelectedPatientId(list[0].patient_id);
-          setMaxHour(list[0].max_hour || 1);
-          setCurrentHour(list[0].max_hour || 1);
-        }
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("error");
@@ -478,6 +609,17 @@ export default function SepsisSignalDashboard() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (patients.length === 0) return;
+    const selected = patients.find((patient) => patient.patient_id === selectedPatientId);
+    const patient = selected ?? patients[0];
+    setMaxHour(patient.max_hour || 1);
+    if (!selected) {
+      setSelectedPatientId(patient.patient_id);
+      setCurrentHour(patient.max_hour || 1);
+    }
+  }, [patients, selectedPatientId, setCurrentHour, setMaxHour, setSelectedPatientId]);
 
   useEffect(() => {
     if (!selectedPatientId) return;
@@ -567,6 +709,18 @@ export default function SepsisSignalDashboard() {
     setForm((previous) => ({ ...previous, [key]: value }));
   }
 
+  function fillBlanks() {
+    setForm({
+      patientId: selectedPatientId || "P001",
+      hour: String(maxHour + 1),
+      hr: "88",
+      sbp: "112",
+      resp: "",
+      temp: "",
+      wbc: "",
+    });
+  }
+
   async function submitLine(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const patientId = form.patientId.trim();
@@ -590,37 +744,30 @@ export default function SepsisSignalDashboard() {
       return;
     }
 
-    const values = signalText.map((text) => (text === "" ? null : Number(text)));
-    if (values.some((value) => value !== null && !Number.isFinite(value))) {
+    if (signalText.some((text) => text !== "" && !Number.isFinite(Number(text)))) {
       setReply("E|signal values must be numeric or empty");
       return;
     }
 
-    const emptyCount = signalText.filter((text) => text === "").length;
+    const protocolLine = formatProtocolLine(form);
     setSending(true);
 
     try {
-      const res = await fetch(`${API_BASE}/observation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patient_id: patientId,
-          hour,
-          hr: values[0],
-          sbp: values[1],
-          resp: values[2],
-          temp: values[3],
-          wbc: values[4],
-        }),
-      });
-
-      if (!res.ok) {
-        setReply(`E|server returned ${res.status}`);
+      const responseLine = (await sendProtocolLine(protocolLine)).replace(/[\r\n]+$/, "");
+      if (responseLine.startsWith("E|")) {
+        setReply(responseLine);
         return;
       }
-
-      const data: PredictResponse = await res.json();
-      setReply(`R|${patientId}|${hour}|${data.probability.toFixed(4)}|${data.alert}|${emptyCount}`);
+      const responseFields = responseLine.split("|");
+      if (
+        responseFields.length !== 6 ||
+        responseFields[0] !== "R" ||
+        responseFields[1] !== patientId ||
+        Number(responseFields[2]) !== hour
+      ) {
+        throw new Error("invalid WebSocket response");
+      }
+      setReply(responseLine);
 
       try {
         const listRes = await fetch(`${API_BASE}/patients`);
@@ -638,8 +785,9 @@ export default function SepsisSignalDashboard() {
       setSelectedPatientId(patientId);
       setCurrentHour(hour);
       setRevision((value) => value + 1);
-    } catch {
-      setReply("E|network error");
+      setInputOpen(false);
+    } catch (error) {
+      setReply(`E|${error instanceof Error ? error.message : "WebSocket request failed"}`);
     } finally {
       setSending(false);
     }
@@ -688,7 +836,7 @@ export default function SepsisSignalDashboard() {
       <header className="flex min-h-[76px] items-center justify-between gap-6 py-4 max-[600px]:flex-wrap">
         <h1 className="text-[30px] font-semibold leading-none tracking-[-0.04em]">{pageTitle}</h1>
 
-        {activePage !== "evaluation" && <div className="flex min-w-0 items-center gap-2.5">
+        {activePage !== "evaluation" && <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
           <label className="shrink-0 font-label text-[11px] font-medium text-muted" htmlFor={patientSelectId}>
             Patient
           </label>
@@ -705,6 +853,19 @@ export default function SepsisSignalDashboard() {
             />
           ) : (
             <span className="text-[13px] text-muted">No patient records</span>
+          )}
+          {activePage === "overview" && (
+            <button
+              type="button"
+              className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 rounded-panel border border-accent bg-accent px-3.5 text-[13px] font-medium text-surface"
+              onClick={() => {
+                setReply("");
+                setInputOpen(true);
+              }}
+            >
+              <Activity size={15} strokeWidth={2} aria-hidden="true" />
+              Live input
+            </button>
           )}
         </div>}
       </header>
@@ -897,82 +1058,6 @@ export default function SepsisSignalDashboard() {
             </div>
           </section>
 
-          <section className={activePage === "live" ? "pt-11" : "hidden"} aria-labelledby="stream-heading">
-            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2.5">
-              <div>
-                <h2 className="text-xl font-semibold tracking-[-0.02em]" id="stream-heading">
-                  Patient hour
-                </h2>
-                <p className="mt-1 text-[12px] text-muted">{livePathLabel}</p>
-              </div>
-            </div>
-
-            <form onSubmit={submitLine}>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-4 lg:grid-cols-7">
-                {OBSERVATION_FIELDS.map((field) => (
-                  <label key={field.key} className="flex min-w-0 flex-col gap-1.5">
-                    <span className="font-label text-[10.5px] font-medium uppercase tracking-[0.06em] text-muted">
-                      {field.label}
-                      {field.unit && (
-                        <span className="ml-1 font-normal normal-case tracking-normal">
-                          ({field.unit})
-                        </span>
-                      )}
-                    </span>
-                    <input
-                      className={FIELD_INPUT}
-                      type="text"
-                      inputMode={field.inputMode}
-                      value={form[field.key]}
-                      onChange={(event) => updateField(field.key, event.target.value)}
-                      placeholder={field.placeholder}
-                      spellCheck={false}
-                      autoComplete="off"
-                    />
-                  </label>
-                ))}
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                <button
-                  type="submit"
-                  className="min-h-[42px] cursor-pointer rounded-panel border border-accent bg-accent px-[18px] text-[13px] font-medium text-surface disabled:cursor-progress disabled:opacity-60"
-                  disabled={sending}
-                >
-                  {sending ? "Sending…" : "Send line"}
-                </button>
-                <button
-                  type="button"
-                  className="min-h-[42px] cursor-pointer rounded-panel border border-rule bg-transparent px-3.5 text-[13px] text-muted hover:text-ink"
-                  onClick={() =>
-                    setForm({
-                      patientId: selectedPatientId || "P001",
-                      hour: String(maxHour + 1),
-                      hr: "88",
-                      sbp: "112",
-                      resp: "",
-                      temp: "",
-                      wbc: "",
-                    })
-                  }
-                >
-                  3 blanks
-                </button>
-                <span className="font-label text-[11px] text-muted">Blank = missing.</span>
-              </div>
-            </form>
-
-            {reply && (
-              <p
-                className="mt-4 overflow-x-auto whitespace-pre-wrap break-words rounded-panel border border-rule border-l-[3px] border-l-accent bg-surface px-3.5 py-3 font-label text-[12.5px] data-[error=true]:border-l-alert data-[error=true]:text-alert"
-                data-error={reply.startsWith("E|")}
-                role="status"
-              >
-                {reply}
-              </p>
-            )}
-          </section>
-
           <section className={activePage === "evaluation" ? "pt-11" : "hidden"} aria-labelledby="evaluation-heading">
             <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2.5">
               <div>
@@ -1054,6 +1139,47 @@ export default function SepsisSignalDashboard() {
         </div>
       </footer>
       </main>
+
+      <dialog
+        ref={inputDialogRef}
+        aria-labelledby="observation-dialog-title"
+        className="fixed inset-y-0 right-0 m-0 ml-auto h-dvh max-h-dvh w-full max-w-[520px] border-0 bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/35"
+        onClose={() => setInputOpen(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setInputOpen(false);
+        }}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-start justify-between gap-4 border-b border-rule px-6 py-5">
+            <div>
+              <h2 className="text-xl font-semibold tracking-[-0.02em]" id="observation-dialog-title">
+                Add patient hour
+              </h2>
+              <p className="mt-1 text-[13px] text-muted">
+                Enter an observation for {selectedPatientId || "a patient"}. Blank signals count as missing.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-panel text-muted hover:bg-app hover:text-ink focus-visible:outline-2 focus-visible:outline-rule"
+              onClick={() => setInputOpen(false)}
+              aria-label="Close live input drawer"
+            >
+              <X size={18} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <ObservationEntry
+              form={form}
+              onSubmit={submitLine}
+              onChange={updateField}
+              onFillBlanks={fillBlanks}
+              sending={sending}
+              reply={reply}
+            />
+          </div>
+        </div>
+      </dialog>
     </>
   );
 }

@@ -8,11 +8,13 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from src.predict import predict, get_threshold, MODEL_NAME
+from src.server import parse_and_process_line
 from src.store import (
     init_db,
     list_patient_ids,
@@ -204,3 +206,16 @@ def add_observation(obs: ObservationInput):
         wbc=obs.wbc,
     )
     return predict(patient_id=obs.patient_id, hour=obs.hour)
+
+
+@app.websocket("/ws")
+async def jury_websocket(websocket: WebSocket):
+    """Accept jury H-lines and return one R/E line per WebSocket message."""
+    await websocket.accept()
+    try:
+        while True:
+            line = await websocket.receive_text()
+            reply = await run_in_threadpool(parse_and_process_line, line)
+            await websocket.send_text(reply)
+    except WebSocketDisconnect:
+        pass

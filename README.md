@@ -28,7 +28,11 @@ Set its location in `[config file / env var]`.
 
 ## Quick start
 ```bash
-# 1. Start the line server (TCP - default port 8765)
+# Install the backend's WebSocket support in the same Python environment
+# used to run Uvicorn (the dashboard Live input connects to /ws).
+python -m pip install "uvicorn[standard]"
+
+# 1. Optional: start the raw TCP line server (default port 8765)
 python -m src.server --port 8765
 
 # 2. Start the FastAPI backend (default port 8000)
@@ -52,6 +56,8 @@ Empty field = not measured. Example:
 echo "H|P001|2|88|112|||" | nc localhost [PORT]
 ```
 Expected shape: `R|P001|2|<probability>|<0 or 1>|3`
+
+The dashboard's **Live input** drawer sends this same `H|...` line over the FastAPI WebSocket at `ws://localhost:8000/ws` and receives one `R|...` or `E|...` reply per message. The WebSocket and TCP server share the same line parser and prediction path. The drawer connects to this WebSocket by default when the API is running.
 
 Full details: `docs/DATA_CONTRACT.md`
 
