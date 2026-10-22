@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Activity, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, FileText, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Select from "./Select";
 import { useDashboardState } from "./DashboardState";
+import ShiftReportModal from "./ShiftReportModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const API_WS_URL = process.env.NEXT_PUBLIC_WS_URL || `${API_BASE.replace(/^http/, "ws")}/ws`;
@@ -308,18 +309,22 @@ function HourScrubber({
   id,
   hour,
   maxHour,
+  isPlaying,
+  onTogglePlay,
   onChange,
 }: {
   id: string;
   hour: number;
   maxHour: number;
+  isPlaying: boolean;
+  onTogglePlay: () => void;
   onChange: (hour: number) => void;
 }) {
   const progress =
     maxHour <= 1 ? 0 : Math.min(1, Math.max(0, (hour - 1) / (maxHour - 1))) * 100;
 
   return (
-    <div className="mt-[26px] flex max-w-[440px] items-center gap-2">
+    <div className="mt-[26px] flex max-w-[480px] items-center gap-2">
       <button
         type="button"
         className="inline-flex h-9 w-9 flex-none cursor-pointer items-center justify-center rounded-panel text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-rule disabled:cursor-not-allowed disabled:text-missing"
@@ -349,6 +354,24 @@ function HourScrubber({
         aria-label="Next hour"
       >
         <ChevronRight size={18} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        className="inline-flex h-9 flex-none cursor-pointer items-center gap-1.5 rounded-panel border border-rule bg-surface px-3 text-xs font-medium text-ink transition-colors hover:bg-app focus-visible:outline-2 focus-visible:outline-rule"
+        title={isPlaying ? "Pause playback" : "Autoplay patient trajectory"}
+      >
+        {isPlaying ? (
+          <>
+            <span className="h-2 w-2 rounded-sm bg-alert animate-pulse" />
+            <span>Pause</span>
+          </>
+        ) : (
+          <>
+            <span className="text-[10px]">▶</span>
+            <span>Play</span>
+          </>
+        )}
       </button>
     </div>
   );
@@ -569,6 +592,47 @@ export default function SepsisSignalDashboard() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [inputOpen, setInputOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  function stopPlayback() {
+    setIsPlaying(false);
+  }
+
+  function togglePlayback() {
+    if (isPlaying) {
+      stopPlayback();
+    } else {
+      if (currentHour >= maxHour) {
+        setCurrentHour(1);
+      }
+      setIsPlaying(true);
+    }
+  }
+
+  function handleScrubChange(hour: number) {
+    stopPlayback();
+    setCurrentHour(hour);
+  }
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    if (currentHour >= maxHour) {
+      setIsPlaying(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCurrentHour((prev) => Math.min(prev + 1, maxHour));
+    }, 850);
+
+    return () => clearTimeout(timer);
+  }, [isPlaying, currentHour, maxHour, setCurrentHour]);
+
+  useEffect(() => {
+    stopPlayback();
+  }, [selectedPatientId]);
 
   useEffect(() => {
     const dialog = inputDialogRef.current;
@@ -688,16 +752,19 @@ export default function SepsisSignalDashboard() {
         return;
       }
       if (event.key === "ArrowLeft") {
+        stopPlayback();
         setCurrentHour((hour) => Math.max(1, hour - 1));
       } else if (event.key === "ArrowRight") {
+        stopPlayback();
         setCurrentHour((hour) => Math.min(maxHour, hour + 1));
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [maxHour]);
+  }, [maxHour, setCurrentHour]);
 
   function choosePatient(patientId: string) {
+    stopPlayback();
     const found = patients.find((patient) => patient.patient_id === patientId);
     setSelectedPatientId(patientId);
     setForm((previous) => ({ ...previous, patientId }));
@@ -855,17 +922,27 @@ export default function SepsisSignalDashboard() {
             <span className="text-[13px] text-muted">No patient records</span>
           )}
           {activePage === "overview" && (
-            <button
-              type="button"
-              className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 rounded-panel border border-accent bg-accent px-3.5 text-[13px] font-medium text-surface"
-              onClick={() => {
-                setReply("");
-                setInputOpen(true);
-              }}
-            >
-              <Activity size={15} strokeWidth={2} aria-hidden="true" />
-              Live input
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 rounded-panel border border-rule bg-surface px-3.5 text-[13px] font-medium text-ink transition-colors hover:bg-app"
+                onClick={() => setIsReportOpen(true)}
+              >
+                <FileText size={15} strokeWidth={2} aria-hidden="true" />
+                Export report
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 rounded-panel border border-accent bg-accent px-3.5 text-[13px] font-medium text-surface"
+                onClick={() => {
+                  setReply("");
+                  setInputOpen(true);
+                }}
+              >
+                <Activity size={15} strokeWidth={2} aria-hidden="true" />
+                Live input
+              </button>
+            </div>
           )}
         </div>}
       </header>
@@ -895,7 +972,9 @@ export default function SepsisSignalDashboard() {
             id={hourScrubberId}
             hour={currentHour}
             maxHour={maxHour}
-            onChange={setCurrentHour}
+            isPlaying={isPlaying}
+            onTogglePlay={togglePlayback}
+            onChange={handleScrubChange}
           />
 
         </div>
@@ -1180,6 +1259,17 @@ export default function SepsisSignalDashboard() {
           </div>
         </div>
       </dialog>
+
+      <ShiftReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        patientId={selectedPatientId}
+        currentHour={currentHour}
+        maxHour={maxHour}
+        split={patients.find((p) => p.patient_id === selectedPatientId)?.split ?? "test"}
+        prediction={shownPrediction}
+        timelinePoints={shownTimeline?.points ?? []}
+      />
     </>
   );
 }

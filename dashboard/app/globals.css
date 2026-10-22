@@ -164,3 +164,33 @@
     transform: translateY(0);
   }
 }
+
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #1A1A1A !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #printable-shift-report,
+  #printable-shift-report * {
+    visibility: visible;
+  }
+  #printable-shift-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+    border: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .print-hidden {
+    display: none !important;
+  }
+}
