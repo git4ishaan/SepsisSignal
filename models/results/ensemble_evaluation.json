@@ -16,8 +16,8 @@
   },
   "threshold_selection": {
     "selection_rule": "Targeted high recall (>=0.70) while maximizing F1 on validation set",
-    "uncalibrated_threshold": 0.41,
-    "calibrated_threshold": 0.05
+    "uncalibrated_threshold": 0.411,
+    "calibrated_threshold": 0.0131
   },
   "validation_metrics": {
     "logistic_regression": {
@@ -69,36 +69,36 @@
       "fn": 1098
     },
     "ensemble_uncalibrated": {
-      "threshold": 0.41,
+      "threshold": 0.411,
       "auprc": 0.0887,
       "auroc": 0.7784,
-      "precision": 0.0358,
-      "recall": 0.716,
-      "f1": 0.0682,
-      "specificity": 0.6729,
-      "alert_rate_per_100h": 33.35,
+      "precision": 0.0375,
+      "recall": 0.7003,
+      "f1": 0.0712,
+      "specificity": 0.695,
+      "alert_rate_per_100h": 31.16,
       "brier_score": 0.1678,
       "ece": 0.3561,
-      "tp": 2788,
-      "fp": 75093,
-      "tn": 154509,
-      "fn": 1106
+      "tp": 2727,
+      "fp": 70032,
+      "tn": 159570,
+      "fn": 1167
     },
     "ensemble_calibrated": {
-      "threshold": 0.05,
+      "threshold": 0.0131,
       "auprc": 0.0887,
       "auroc": 0.7784,
-      "precision": 0.1016,
-      "recall": 0.3279,
-      "f1": 0.1551,
-      "specificity": 0.9508,
-      "alert_rate_per_100h": 5.39,
+      "precision": 0.0374,
+      "recall": 0.7003,
+      "f1": 0.071,
+      "specificity": 0.6942,
+      "alert_rate_per_100h": 31.24,
       "brier_score": 0.0158,
       "ece": 0.0013,
-      "tp": 1277,
-      "fp": 11298,
-      "tn": 218304,
-      "fn": 2617
+      "tp": 2727,
+      "fp": 70218,
+      "tn": 159384,
+      "fn": 1167
     }
   },
   "test_metrics": {
@@ -151,36 +151,36 @@
       "fn": 935
     },
     "ensemble_uncalibrated": {
-      "threshold": 0.41,
+      "threshold": 0.411,
       "auprc": 0.097,
       "auroc": 0.8045,
-      "precision": 0.0394,
-      "recall": 0.7661,
-      "f1": 0.075,
-      "specificity": 0.6738,
-      "alert_rate_per_100h": 33.37,
+      "precision": 0.0415,
+      "recall": 0.7529,
+      "f1": 0.0786,
+      "specificity": 0.6959,
+      "alert_rate_per_100h": 31.19,
       "brier_score": 0.1685,
       "ece": 0.3572,
-      "tp": 3069,
-      "fp": 74737,
-      "tn": 154384,
-      "fn": 937
+      "tp": 3016,
+      "fp": 69687,
+      "tn": 159434,
+      "fn": 990
     },
     "ensemble_calibrated": {
-      "threshold": 0.05,
+      "threshold": 0.0131,
       "auprc": 0.097,
       "auroc": 0.8045,
-      "precision": 0.1099,
-      "recall": 0.354,
-      "f1": 0.1678,
-      "specificity": 0.9499,
-      "alert_rate_per_100h": 5.53,
+      "precision": 0.0415,
+      "recall": 0.7541,
+      "f1": 0.0786,
+      "specificity": 0.6952,
+      "alert_rate_per_100h": 31.26,
       "brier_score": 0.0162,
       "ece": 0.0013,
-      "tp": 1418,
-      "fp": 11482,
-      "tn": 217639,
-      "fn": 2588
+      "tp": 3021,
+      "fp": 69845,
+      "tn": 159276,
+      "fn": 985
     }
   },
   "test_bootstrap_confidence_intervals": {

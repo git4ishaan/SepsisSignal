@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ChartNoAxesCombined } from "lucide-react";
+import { Activity, ChartNoAxesCombined, FileText } from "lucide-react";
 import type { ReactNode } from "react";
 import { DashboardStateProvider } from "./DashboardState";
 import Image from "next/image";
@@ -10,13 +10,14 @@ import Image from "next/image";
 const navigation = [
   { href: "/", label: "Overview", Icon: Activity },
   { href: "/evaluation", label: "Evaluation", Icon: ChartNoAxesCombined },
+  { href: "/reports", label: "Reports", Icon: FileText },
 ];
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden md:flex-row">
+    <div className="dashboard-app-shell flex h-screen flex-col overflow-hidden md:flex-row">
       <aside className="w-full shrink-0 bg-app px-5 py-5 md:sticky md:top-0 md:flex md:h-screen md:w-[210px] md:flex-col md:px-5 md:py-7">
         <Link href="/" className="inline-flex items-center gap-3 rounded-panel focus-visible:outline-2 focus-visible:outline-accent">
           <Image src="/logo.png" alt="SepsisSignal Logo" width={32} height={32} className="h-8 w-8 rounded-[10px]" />
