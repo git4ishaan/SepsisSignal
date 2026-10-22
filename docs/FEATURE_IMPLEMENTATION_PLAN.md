@@ -3,22 +3,48 @@
 > **Standard of Quality**: Zero regressions, strict causal isolation, robust null handling, and editorial design consistency.  
 > **Target Audience**: Team HackerSIM (ICU Early-Warning Research Prototype).
 
-This implementation plan details the step-by-step rollout of 4 high-impact competitive features:
-1. **Phase 1: Autoplay / Telemetry Stream Simulator** (UI playback control)
-2. **Phase 2: Shift Handover & Trajectory Report Generator** (Interactive modal + printable PDF)
-3. **Phase 3: Explainable Feature Attribution ("Why the Alert?")** (Log-odds coefficient weighting)
-4. **Phase 4: Classical Clinical Baseline Benchmarking (qSOFA & SIRS)** (Standard-of-care delta)
+This plan covers four optional demo features. The priority order below reflects hackathon jury value, implementation effort, and risk of unsupported clinical claims. Phase numbers below are section identifiers, not execution order. Ownership is split between Ishaan (features 1–2) and the project team (features 3–4).
+
+| Priority | Feature | Owner | Value | Recommendation |
+|---|---|---|---|---|
+| **P1** | Patient-stay playback (Phase 1) | Ishaan | High demo value; low implementation risk | Implement first. It replays stored hours; call it playback unless it actually inserts new observations. |
+| **P2** | Model contribution display (Phase 3) | Project team | Medium–high; supports explainability | Implement after the jury path. Use exact model preprocessing and describe contributions as model behavior, not clinical causes. |
+| **P3** | qSOFA/SIRS comparison (Phase 4) | Project team | Potentially high; substantial validity risk | Implement only as descriptive available criteria; represent incomplete inputs honestly and make no lead-time claim without held-out evaluation. |
+| **P4** | Research trajectory summary / PDF (Phase 2) | Ishaan | Medium–low; more effort and less jury alignment | Defer until higher-priority work is complete. Avoid presenting it as a clinical handover tool. |
+
+## Ownership
+
+| Phase | Feature | Owner |
+|---|---|---|
+| 1 | Patient-stay playback | Ishaan |
+| 2 | Research trajectory summary / PDF | Ishaan |
+| 3 | Model contributions | Project team |
+| 4 | Available qSOFA / SIRS criteria | Project team |
+
+Ownership is separate from priority. The assigned owner should follow the priority order and keep the jury evaluation path as the first acceptance gate.
+
+## First Priority: Preserve the Jury Evaluation Path
+
+These are acceptance requirements, not optional roadmap features. Keep them ahead of the four enhancements:
+
+- Accept one `H|...` record and return one `R|...` result through the chosen WebSocket or raw TCP transport.
+- Store each patient-hour in SQLite before inference; count empty signal fields before imputation.
+- Ensure hour T uses only that patient's observations with hour `<= T`, and preserve the stored prediction for T after later hours arrive.
+- Keep the existing trained model and patient-level split; show the live Logistic Regression baseline label and research-prototype notice in the dashboard.
+- Keep the dashboard clock tied to the selected patient and hour, showing that hour's probability and alert.
+
+Do not treat the demo features below as substitutes for these checks.
 
 ---
 
-## Phase 1: Autoplay / Telemetry Stream Simulator
+## Phase 1: Patient-Stay Playback
 
 ### 1. Objective & Value
-Allow presenters and evaluators to press **Play (`▶`)** on the patient clock so the ICU stay advances automatically hour-by-hour (e.g. 1 hour every 800ms). This showcases real-time deterioration and alert triggering dynamically without manual slider scrubbing.
+Allow presenters and evaluators to press **Play (`▶`)** on the patient clock so the selected stay advances through its stored hours automatically (for example, one hour every 800ms). This makes deterioration and alert timing easy to follow without manual slider scrubbing. This is playback of stored data, not a telemetry stream simulator.
 
 ### 2. Architecture & Data Flow
 * **File Affected**: [`dashboard/app/components/Dashboard.tsx`](file:///d:/SepsisSignal/dashboard/app/components/Dashboard.tsx)
-* **Scope**: Pure frontend state management. No backend or database changes required.
+* **Scope**: Frontend playback state over the existing stored timeline. No backend or database changes required.
 * **State Lifecycle**:
   ```
   [User clicks Play] -> setInterval(tick, 800ms) -> setCurrentHour(prev + 1)
@@ -115,14 +141,14 @@ In `HourScrubber` or directly beside it in the `clock-heading` section:
 
 ---
 
-## Phase 2: Shift Handover & Trajectory Report Generator
+## Phase 2: Research Trajectory Summary / PDF
 
 ### 1. Objective & Value
-Provide a one-click **"Export Shift Report"** modal with `@media print` styling that compiles an ICU handover summary for the selected patient up to hour $T$. Clinicians can review it on-screen or print/save it as a clean 1-page PDF.
+Provide a one-click **"Export trajectory summary"** view with print styling for the selected patient up to hour $T$. This is a research-demo summary, not a clinical handover or decision-support document.
 
 ### 2. Architecture & Data Flow
 * **Files Affected**:
-  - [`dashboard/app/components/ShiftReportModal.tsx`](file:///d:/SepsisSignal/dashboard/app/components/ShiftReportModal.tsx) (New component)
+  - [`dashboard/app/components/TrajectorySummary.tsx`](file:///d:/SepsisSignal/dashboard/app/components/TrajectorySummary.tsx) (New component)
   - [`dashboard/app/components/Dashboard.tsx`](file:///d:/SepsisSignal/dashboard/app/components/Dashboard.tsx) (Header button & modal toggle)
   - [`dashboard/app/globals.css`](file:///d:/SepsisSignal/dashboard/app/globals.css) (Print stylesheet rules)
 
@@ -131,7 +157,7 @@ The report synthesizes data already present in `timeline` and `shownPrediction`:
 1. **Header Block**: Patient ID, Cohort Split (Test vs. Live), Current ICU Hour $T$, Report Generated Timestamp, Research Prototype Notice.
 2. **Alert & Trajectory Status**:
    - Current Risk Probability vs. Validation Threshold ($0.25$).
-   - Earliest Alert Hour (if any) and Lead Time to peak deterioration.
+   - Earliest alert hour, if any, as a descriptive value; do not infer lead time to clinical deterioration.
    - Peak Risk Probability during stay.
 3. **Vital Signs Anomaly & Delta Table**:
    - Vital names: HR, SBP, Resp, Temp, WBC.
@@ -140,18 +166,18 @@ The report synthesizes data already present in `timeline` and `shownPrediction`:
    - Delta ($\Delta = \text{Current} - \text{Initial}$).
    - Measurement Status: *Freshly Measured*, *Causally Forward-Filled*, or *Unmeasured*.
 4. **Missingness Audit**: Total empty fields at hour $T$, hours since last laboratory draw (WBC).
-5. **Model Card & Sign-Off**: Algorithm (`logistic_regression_baseline`), feature count ($22$), validation threshold source, blank clinician signature block for handover review.
+5. **Model context**: Algorithm (`logistic_regression_baseline`), feature count ($22$), validation threshold source, and research-prototype notice. Do not include clinician sign-off fields.
 
 ### 4. Step-by-Step Implementation
 
-#### A. Create `dashboard/app/components/ShiftReportModal.tsx`
+#### A. Create `dashboard/app/components/TrajectorySummary.tsx`
 ```tsx
 "use client";
 
 import React from "react";
 import { X, Printer, AlertTriangle, CheckCircle2 } from "lucide-react";
 
-interface ShiftReportModalProps {
+interface TrajectorySummaryProps {
   isOpen: boolean;
   onClose: () => void;
   patientId: string;
@@ -180,7 +206,7 @@ interface ShiftReportModalProps {
   }>;
 }
 
-export default function ShiftReportModal({
+export default function TrajectorySummary({
   isOpen,
   onClose,
   patientId,
@@ -189,7 +215,7 @@ export default function ShiftReportModal({
   split,
   prediction,
   timelinePoints,
-}: ShiftReportModalProps) {
+}: TrajectorySummaryProps) {
   if (!isOpen) return null;
 
   // Filter timeline points up to current hour (strict causal integrity)
@@ -218,7 +244,7 @@ export default function ShiftReportModal({
         {/* Modal Action Bar (hidden when printing) */}
         <div className="mb-6 flex items-center justify-between border-b border-rule pb-4 print:hidden">
           <div className="flex items-center gap-2">
-            <span className="font-label text-xs uppercase tracking-wider text-muted">Clinical Audit Tool</span>
+              <span className="font-label text-xs uppercase tracking-wider text-muted">Research summary</span>
             <span className="rounded bg-app px-2 py-0.5 text-xs text-muted">Hour {currentHour} of {maxHour}</span>
           </div>
           <div className="flex items-center gap-3">
@@ -243,7 +269,7 @@ export default function ShiftReportModal({
           {/* Header */}
           <div className="flex items-start justify-between border-b border-rule pb-4">
             <div>
-              <h1 className="text-xl font-medium tracking-tight">ICU Shift Handover & Sepsis Risk Summary</h1>
+              <h1 className="text-xl font-medium tracking-tight">Patient Trajectory & Sepsis Risk Summary</h1>
               <p className="mt-1 text-xs text-muted">
                 Patient: <strong className="text-ink">{patientId}</strong> ({split} cohort) · Stay Hour: <strong>{currentHour}</strong> · Generated: {new Date().toLocaleString()}
               </p>
@@ -348,18 +374,6 @@ export default function ShiftReportModal({
             </p>
           </div>
 
-          {/* Handover Sign-Off Block */}
-          <div className="mt-8 pt-4 border-t border-rule grid grid-cols-2 gap-8 text-xs text-muted">
-            <div>
-              <p className="font-medium text-ink">Handing-Off Clinician / Fellow:</p>
-              <div className="mt-6 border-b border-dashed border-rule" />
-            </div>
-            <div>
-              <p className="font-medium text-ink">Receiving Clinician / Fellow:</p>
-              <div className="mt-6 border-b border-dashed border-rule" />
-            </div>
-          </div>
-
           {/* Regulatory Disclaimer */}
           <p className="text-[10px] text-center text-muted italic">
             Not for clinical decision-making. Research prototype evaluated on PhysioNet Computing in Cardiology Challenge 2019 data.
@@ -415,16 +429,16 @@ Add button next to "Live input" in header:
 
 ---
 
-## Phase 3: Explainable Feature Attribution ("Why the Alert?")
+## Phase 3: Model Contributions ("What Influenced the Score?")
 
 ### 1. Objective & Value
-Directly break down the model's prediction at hour $T$ into its top 3 physiological drivers (e.g. `▲ HR acceleration`, `▼ SBP drop`, `▲ Temp elevation`), ending the "black-box" complaint common to Epic ESM.
+Show the largest positive model contributions to the prediction at hour $T$. This helps explain how the Logistic Regression model produced its score; it does not establish clinical causation or identify validated physiological drivers.
 
 ### 2. Architecture & Data Flow
 * **File Affected**: [`src/predict.py`](file:///d:/SepsisSignal/src/predict.py) & [`dashboard/app/components/Dashboard.tsx`](file:///d:/SepsisSignal/dashboard/app/components/Dashboard.tsx)
-* **Math Foundation**: For Logistic Regression, log-odds contribution is:
+* **Math Foundation**: For Logistic Regression, a feature's contribution to the model logit is:
   $$\text{contribution}_i = w_i \times x_i$$
-  where $w_i$ is the trained model coefficient for feature $i$ and $x_i$ is the normalized feature value.
+where $w_i$ is the trained model coefficient and $x_i$ is that feature after the model's exact serving-time preprocessing. Compute contributions in the same feature space used by `predict_proba`; do not independently refit or approximate preprocessing.
 
 ### 3. Step-by-Step Implementation
 
@@ -432,8 +446,8 @@ Directly break down the model's prediction at hour $T$ into its top 3 physiologi
 ```python
 def explain_prediction(model, feature_vec, feature_names, top_k=3):
     """
-    Computes top positive contributors to the log-odds score.
-    Returns human-readable physiological explanations.
+    Computes top positive model contributions to the log-odds score.
+    These are model explanations, not clinical causes.
     """
     # LogisticRegression pipeline: extract final estimator coefficients
     try:
@@ -463,7 +477,7 @@ def explain_prediction(model, feature_vec, feature_names, top_k=3):
         
         indexed_contribs = []
         for name, val, contrib in zip(feature_names, feature_vec[0], contributions):
-            if name in label_map and contrib > 0.05:  # Only positive risk drivers
+            if name in label_map and contrib > 0.05:  # Only positive model contributions
                 indexed_contribs.append({
                     "feature": name,
                     "label": label_map[name],
@@ -506,41 +520,43 @@ In `Dashboard.tsx`, render directly under the probability:
 
 ---
 
-## Phase 4: Classical Clinical Baseline Comparison (qSOFA & SIRS)
+## Phase 4: Available qSOFA / SIRS Criteria (Conditional)
 
 ### 1. Objective & Value
-Show a side-by-side indicator of classical standard-of-care criteria (**qSOFA** and **SIRS**) at hour $T$ to demonstrate the lead-time advantage of SepsisSignal (flagging risk 3–5 hours before classical bedside scores turn positive).
+Consider showing available qSOFA and SIRS criteria at hour $T$ as descriptive context. Do not claim a standard-of-care comparison or lead-time advantage unless the complete criteria are available and the comparison has been measured on held-out patients. This feature is conditional on clinical validity review.
 
 ### 2. Clinical Rules Definition
-1. **qSOFA** (Quick Sequential Organ Failure Assessment):
+1. **qSOFA components available in this input** (not a complete qSOFA score):
    - Resp Rate $\ge 22$ breaths/min (+1)
    - Systolic BP $\le 100$ mmHg (+1)
-   - *(Score $\ge 2$ indicates high risk of poor ICU outcome)*.
+   - Mental status is not among the five input signals, so the complete qSOFA score cannot be calculated. Do not label these two components as a complete qSOFA-positive/negative result or apply the complete-score interpretation.
 2. **SIRS** (Systemic Inflammatory Response Syndrome):
    - Heart Rate $> 90$ bpm (+1)
    - Temperature $> 38.0^\circ\text{C}$ or $< 36.0^\circ\text{C}$ (+1)
    - Resp Rate $> 20$ breaths/min (+1)
-   - WBC $> 12.0$ or $< 4.0\times 10^3/\mu\text{L}$ (+1)
-   - *(Score $\ge 2$ meets SIRS criteria)*.
+   - WBC $> 12.0$ or $< 4.0\times 10^3/\mu\text{L}$ (+1; band count is unavailable).
+   - Mark criteria with missing inputs as unknown. Any threshold interpretation must state these input limitations.
+
+Do not claim a 3–5 hour lead-time advantage in UI copy without evidence. If the team wants to make that claim, define the comparison in advance and calculate it on the held-out patient cohort.
 
 ### 3. Implementation in `Dashboard.tsx`
 ```tsx
 function computeClinicalBaselines(values: PointValues) {
   let qsofa = 0;
-  let qsofaTested = 0;
-  if (values.resp !== null) { qsofaTested++; if (values.resp >= 22) qsofa++; }
-  if (values.sbp !== null) { qsofaTested++; if (values.sbp <= 100) qsofa++; }
+  let qsofaAvailable = 0;
+  if (values.resp !== null) { qsofaAvailable++; if (values.resp >= 22) qsofa++; }
+  if (values.sbp !== null) { qsofaAvailable++; if (values.sbp <= 100) qsofa++; }
 
   let sirs = 0;
-  let sirsTested = 0;
-  if (values.hr !== null) { sirsTested++; if (values.hr > 90) sirs++; }
-  if (values.temp !== null) { sirsTested++; if (values.temp > 38.0 || values.temp < 36.0) sirs++; }
-  if (values.resp !== null) { sirsTested++; if (values.resp > 20) sirs++; }
-  if (values.wbc !== null) { sirsTested++; if (values.wbc > 12.0 || values.wbc < 4.0) sirs++; }
+  let sirsAvailable = 0;
+  if (values.hr !== null) { sirsAvailable++; if (values.hr > 90) sirs++; }
+  if (values.temp !== null) { sirsAvailable++; if (values.temp > 38.0 || values.temp < 36.0) sirs++; }
+  if (values.resp !== null) { sirsAvailable++; if (values.resp > 20) sirs++; }
+  if (values.wbc !== null) { sirsAvailable++; if (values.wbc > 12.0 || values.wbc < 4.0) sirs++; }
 
   return {
-    qsofa: { score: qsofa, max: qsofaTested, positive: qsofa >= 2 },
-    sirs: { score: sirs, max: sirsTested, positive: sirs >= 2 },
+    qsofaComponents: { met: qsofa, available: qsofaAvailable, complete: false },
+    sirsCriteria: { met: sirs, available: sirsAvailable, bandCountAvailable: false },
   };
 }
 ```
@@ -549,24 +565,24 @@ Render alongside threshold:
 ```tsx
 <div className="mt-3 flex items-center gap-3 text-xs">
   <span className="text-muted">Standard criteria:</span>
-  <span className={`rounded px-1.5 py-0.5 text-[11px] ${qsofa.positive ? 'bg-alert/15 text-alert font-medium' : 'bg-app text-muted'}`}>
-    qSOFA: {qsofa.score}/{qsofa.max} {qsofa.positive ? '(Pos)' : '(Neg)'}
+  <span className="rounded px-1.5 py-0.5 text-[11px] bg-app text-muted">
+    qSOFA components met: {qsofaComponents.met}/{qsofaComponents.available} · incomplete (mental status unavailable)
   </span>
-  <span className={`rounded px-1.5 py-0.5 text-[11px] ${sirs.positive ? 'bg-alert/15 text-alert font-medium' : 'bg-app text-muted'}`}>
-    SIRS: {sirs.score}/{sirs.max} {sirs.positive ? '(Pos)' : '(Neg)'}
+  <span className="rounded px-1.5 py-0.5 text-[11px] bg-app text-muted">
+    SIRS criteria met: {sirsCriteria.met}/{sirsCriteria.available} assessed · band count unavailable
   </span>
 </div>
 ```
 
 ---
 
-## Phased Execution & Quality Gate Sequence
+## Prioritized Execution & Quality Gates
 
-| Phase | Feature | Estimated Time | Regression Risk | Automated Test Command |
-|---|---|---|---|---|
-| **Phase 1** | Autoplay Stream Simulator | 5–10 min | Very Low | `bun test` or UI scrubber verify |
-| **Phase 2** | Shift Handover Report Modal | 15–20 min | Very Low | Test print dialog & modal toggle |
-| **Phase 3** | Explainable Attribution | 10–15 min | Low | `python -m tests.run_tests` |
-| **Phase 4** | Classical Rules (qSOFA/SIRS) | 10 min | Zero | Verify scoring logic on P001/P002 |
+| Priority | Feature | Verification focus | Main risk |
+|---|---|---|---|
+| **P1** | Patient-stay playback — Ishaan | Playback stops at the available hour; manual scrub and patient change stop playback. | Confusing replay with incoming live telemetry. |
+| **P2** | Model contributions — Project team | Calculation uses the serving model's exact transformed feature vector and agrees with its logit. | Mislabeling a model contribution as causation or clinical explanation. |
+| **P3** | Available clinical criteria — Project team | Missing inputs show as unknown; partial qSOFA components are not presented as a complete score; no unsupported lead-time statement. | Incomplete criteria or an unsubstantiated comparison. |
+| **P4** | Research trajectory summary / PDF — Ishaan | Values are limited to hour T, missing values are clear, and print output retains the research disclaimer. | Clinical workflow implications and stale or misleading report data. |
 
-Follow this document sequentially: execute Phase 1 and 2 first for immediate demo readiness, followed by Phase 3 and 4 to seal the clinical explainability advantage.
+Implement in priority order after the jury path is confirmed. Defer P3 unless its criteria and claims can be validated; P4 is optional demo polish.
