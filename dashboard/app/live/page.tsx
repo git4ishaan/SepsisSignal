@@ -1,5 +1,5 @@
-import SepsisSignalDashboard from "../components/Dashboard";
+import { redirect } from "next/navigation";
 
 export default function LiveInputPage() {
-  return <SepsisSignalDashboard />;
+  redirect("/");
 }
