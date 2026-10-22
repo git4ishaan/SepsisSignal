@@ -144,6 +144,12 @@ def load_tests(loader, standard_tests, pattern):
     suite.addTests(loader.loadTestsFromTestCase(TestT08MetricReproduction))
     from tests.test_t09_temporal_robustness import TestT09TemporalRobustness
     suite.addTests(loader.loadTestsFromTestCase(TestT09TemporalRobustness))
+    from tests.test_ensemble import TestSepsisEnsemble
+    suite.addTests(loader.loadTestsFromTestCase(TestSepsisEnsemble))
+    from tests.test_ensemble_audit import TestEnsembleAudit
+    suite.addTests(loader.loadTestsFromTestCase(TestEnsembleAudit))
+    from tests.test_benchmark_utilities import TestBenchmarkUtilities
+    suite.addTests(loader.loadTestsFromTestCase(TestBenchmarkUtilities))
     return suite
 
 

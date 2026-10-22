@@ -1,0 +1,16 @@
+{
+  "uncalibrated_threshold": 0.41,
+  "calibrated_threshold": 0.05,
+  "chosen_on": "validation",
+  "selection_rule": "Targeted high recall (>=0.70) while maximizing F1 on validation set",
+  "validation_stats_uncalibrated": {
+    "precision": 0.03579820495371143,
+    "recall": 0.7159732922444787,
+    "f1": 0.06818709874656069
+  },
+  "validation_stats_calibrated": {
+    "precision": 0.1015506958250497,
+    "recall": 0.32794042116076016,
+    "f1": 0.1550792397838363
+  }
+}

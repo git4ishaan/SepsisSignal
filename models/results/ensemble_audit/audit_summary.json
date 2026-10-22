@@ -1,0 +1,551 @@
+{
+  "disclaimer": "Research prototype, not for clinical decision-making. Evaluated on PhysioNet 2019 test split.",
+  "data_integrity": {
+    "train_patients": 28217,
+    "val_patients": 6046,
+    "test_patients": 6048,
+    "val_hours": 233496,
+    "test_hours": 233127,
+    "val_prevalence": 0.01668,
+    "test_prevalence": 0.01718,
+    "disjoint_splits": true,
+    "feature_dimension": 22,
+    "gru_max_window": 48
+  },
+  "threshold_audit": {
+    "uncalibrated_high_recall_op": {
+      "validation": {
+        "threshold": 0.411,
+        "precision": 0.0375,
+        "recall": 0.7003,
+        "f1": 0.0712,
+        "specificity": 0.695,
+        "alert_rate_per_100h": 31.16,
+        "tp": 2727,
+        "fp": 70032,
+        "tn": 159570,
+        "fn": 1167
+      },
+      "test": {
+        "threshold": 0.411,
+        "precision": 0.0415,
+        "recall": 0.7529,
+        "f1": 0.0786,
+        "specificity": 0.6959,
+        "alert_rate_per_100h": 31.19,
+        "tp": 3016,
+        "fp": 69687,
+        "tn": 159434,
+        "fn": 990
+      }
+    },
+    "calibrated_high_recall_op": {
+      "validation": {
+        "threshold": 0.0131,
+        "precision": 0.0374,
+        "recall": 0.7003,
+        "f1": 0.071,
+        "specificity": 0.6942,
+        "alert_rate_per_100h": 31.24,
+        "tp": 2727,
+        "fp": 70218,
+        "tn": 159384,
+        "fn": 1167
+      },
+      "test": {
+        "threshold": 0.0131,
+        "precision": 0.0415,
+        "recall": 0.7541,
+        "f1": 0.0786,
+        "specificity": 0.6952,
+        "alert_rate_per_100h": 31.26,
+        "tp": 3021,
+        "fp": 69845,
+        "tn": 159276,
+        "fn": 985
+      }
+    },
+    "calibrated_max_f1_op": {
+      "validation": {
+        "threshold": 0.0526,
+        "precision": 0.1033,
+        "recall": 0.3192,
+        "f1": 0.156,
+        "specificity": 0.953,
+        "alert_rate_per_100h": 5.16,
+        "tp": 1243,
+        "fp": 10795,
+        "tn": 218807,
+        "fn": 2651
+      },
+      "test": {
+        "threshold": 0.0526,
+        "precision": 0.112,
+        "recall": 0.3432,
+        "f1": 0.1688,
+        "specificity": 0.9524,
+        "alert_rate_per_100h": 5.27,
+        "tp": 1375,
+        "fp": 10907,
+        "tn": 218214,
+        "fn": 2631
+      }
+    },
+    "truncated_grid_bug_explanation": {
+      "original_search_min": 0.05,
+      "calibrated_recall_at_0_05": 0.3141,
+      "true_calibrated_threshold_for_70pct_recall": 0.0131
+    }
+  },
+  "calibration_audit": {
+    "validation": {
+      "brier_uncalibrated": 0.16782724857330322,
+      "brier_calibrated": 0.015826813876628876,
+      "logloss_uncalibrated": 0.5307073593139648,
+      "logloss_calibrated": 0.07498998939990997,
+      "ece_uniform_10_uncalibrated": 0.35607710036289564,
+      "ece_uniform_10_calibrated": 0.0013305805125594292,
+      "ece_quantile_10_calibrated": 0.0013772095381528607,
+      "reliability_table_uniform_10": [
+        {
+          "bin_idx": 1,
+          "bin_range": "[0.0000, 0.1000]",
+          "count": 227964,
+          "pct_of_total": 97.63,
+          "mean_pred_prob": 0.0134,
+          "observed_positive_rate": 0.014,
+          "calibration_error": 0.0006
+        },
+        {
+          "bin_idx": 2,
+          "bin_range": "[0.1000, 0.2000]",
+          "count": 4623,
+          "pct_of_total": 1.98,
+          "mean_pred_prob": 0.1373,
+          "observed_positive_rate": 0.112,
+          "calibration_error": 0.0253
+        },
+        {
+          "bin_idx": 3,
+          "bin_range": "[0.2000, 0.3000]",
+          "count": 819,
+          "pct_of_total": 0.35,
+          "mean_pred_prob": 0.2336,
+          "observed_positive_rate": 0.1795,
+          "calibration_error": 0.0541
+        },
+        {
+          "bin_idx": 4,
+          "bin_range": "[0.3000, 0.4000]",
+          "count": 88,
+          "pct_of_total": 0.04,
+          "mean_pred_prob": 0.3237,
+          "observed_positive_rate": 0.4432,
+          "calibration_error": 0.1195
+        },
+        {
+          "bin_idx": 5,
+          "bin_range": "[0.4000, 0.5000]",
+          "count": 2,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.4066,
+          "observed_positive_rate": 1.0,
+          "calibration_error": 0.5934
+        },
+        {
+          "bin_idx": 6,
+          "bin_range": "[0.5000, 0.6000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.55,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 7,
+          "bin_range": "[0.6000, 0.7000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.65,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 8,
+          "bin_range": "[0.7000, 0.8000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.75,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 9,
+          "bin_range": "[0.8000, 0.9000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.85,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 10,
+          "bin_range": "[0.9000, 1.0000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.95,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        }
+      ],
+      "reliability_table_quantile_10": [
+        {
+          "bin_idx": 1,
+          "bin_range": "[0.0017, 0.0050]",
+          "count": 23350,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0042,
+          "observed_positive_rate": 0.0017,
+          "calibration_error": 0.0025
+        },
+        {
+          "bin_idx": 2,
+          "bin_range": "[0.0050, 0.0061]",
+          "count": 23349,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0055,
+          "observed_positive_rate": 0.0036,
+          "calibration_error": 0.0019
+        },
+        {
+          "bin_idx": 3,
+          "bin_range": "[0.0061, 0.0071]",
+          "count": 23350,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0066,
+          "observed_positive_rate": 0.0049,
+          "calibration_error": 0.0017
+        },
+        {
+          "bin_idx": 4,
+          "bin_range": "[0.0071, 0.0083]",
+          "count": 23349,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0077,
+          "observed_positive_rate": 0.0073,
+          "calibration_error": 0.0004
+        },
+        {
+          "bin_idx": 5,
+          "bin_range": "[0.0083, 0.0097]",
+          "count": 23350,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0089,
+          "observed_positive_rate": 0.0087,
+          "calibration_error": 0.0003
+        },
+        {
+          "bin_idx": 6,
+          "bin_range": "[0.0097, 0.0115]",
+          "count": 23350,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0105,
+          "observed_positive_rate": 0.0115,
+          "calibration_error": 0.0009
+        },
+        {
+          "bin_idx": 7,
+          "bin_range": "[0.0115, 0.0134]",
+          "count": 23349,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0125,
+          "observed_positive_rate": 0.0138,
+          "calibration_error": 0.0013
+        },
+        {
+          "bin_idx": 8,
+          "bin_range": "[0.0134, 0.0173]",
+          "count": 23349,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0152,
+          "observed_positive_rate": 0.0149,
+          "calibration_error": 0.0003
+        },
+        {
+          "bin_idx": 9,
+          "bin_range": "[0.0173, 0.0275]",
+          "count": 23350,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0213,
+          "observed_positive_rate": 0.0236,
+          "calibration_error": 0.0022
+        },
+        {
+          "bin_idx": 10,
+          "bin_range": "[0.0275, 0.4112]",
+          "count": 23350,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0748,
+          "observed_positive_rate": 0.0769,
+          "calibration_error": 0.0022
+        }
+      ]
+    },
+    "test": {
+      "brier_uncalibrated": 0.16851851344108582,
+      "brier_calibrated": 0.016206910833716393,
+      "logloss_uncalibrated": 0.531311571598053,
+      "logloss_calibrated": 0.07528366893529892,
+      "ece_uniform_10_uncalibrated": 0.35717100385925116,
+      "ece_uniform_10_calibrated": 0.0013359235672064842,
+      "ece_quantile_10_calibrated": 0.002949527163087074,
+      "reliability_table_uniform_10": [
+        {
+          "bin_idx": 1,
+          "bin_range": "[0.0000, 0.1000]",
+          "count": 227881,
+          "pct_of_total": 97.75,
+          "mean_pred_prob": 0.0136,
+          "observed_positive_rate": 0.0145,
+          "calibration_error": 0.0009
+        },
+        {
+          "bin_idx": 2,
+          "bin_range": "[0.1000, 0.2000]",
+          "count": 4442,
+          "pct_of_total": 1.91,
+          "mean_pred_prob": 0.1345,
+          "observed_positive_rate": 0.1207,
+          "calibration_error": 0.0138
+        },
+        {
+          "bin_idx": 3,
+          "bin_range": "[0.2000, 0.3000]",
+          "count": 743,
+          "pct_of_total": 0.32,
+          "mean_pred_prob": 0.2385,
+          "observed_positive_rate": 0.1857,
+          "calibration_error": 0.0528
+        },
+        {
+          "bin_idx": 4,
+          "bin_range": "[0.3000, 0.4000]",
+          "count": 61,
+          "pct_of_total": 0.03,
+          "mean_pred_prob": 0.3249,
+          "observed_positive_rate": 0.5082,
+          "calibration_error": 0.1833
+        },
+        {
+          "bin_idx": 5,
+          "bin_range": "[0.4000, 0.5000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.45,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 6,
+          "bin_range": "[0.5000, 0.6000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.55,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 7,
+          "bin_range": "[0.6000, 0.7000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.65,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 8,
+          "bin_range": "[0.7000, 0.8000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.75,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 9,
+          "bin_range": "[0.8000, 0.9000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.85,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        },
+        {
+          "bin_idx": 10,
+          "bin_range": "[0.9000, 1.0000]",
+          "count": 0,
+          "pct_of_total": 0.0,
+          "mean_pred_prob": 0.95,
+          "observed_positive_rate": 0.0,
+          "calibration_error": 0.0
+        }
+      ],
+      "reliability_table_quantile_10": [
+        {
+          "bin_idx": 1,
+          "bin_range": "[0.0017, 0.0050]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0042,
+          "observed_positive_rate": 0.0012,
+          "calibration_error": 0.0031
+        },
+        {
+          "bin_idx": 2,
+          "bin_range": "[0.0050, 0.0061]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0056,
+          "observed_positive_rate": 0.0032,
+          "calibration_error": 0.0023
+        },
+        {
+          "bin_idx": 3,
+          "bin_range": "[0.0061, 0.0071]",
+          "count": 23312,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0066,
+          "observed_positive_rate": 0.0044,
+          "calibration_error": 0.0022
+        },
+        {
+          "bin_idx": 4,
+          "bin_range": "[0.0071, 0.0083]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0077,
+          "observed_positive_rate": 0.0051,
+          "calibration_error": 0.0026
+        },
+        {
+          "bin_idx": 5,
+          "bin_range": "[0.0083, 0.0097]",
+          "count": 23312,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.009,
+          "observed_positive_rate": 0.007,
+          "calibration_error": 0.002
+        },
+        {
+          "bin_idx": 6,
+          "bin_range": "[0.0097, 0.0115]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0106,
+          "observed_positive_rate": 0.0104,
+          "calibration_error": 0.0001
+        },
+        {
+          "bin_idx": 7,
+          "bin_range": "[0.0115, 0.0134]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0125,
+          "observed_positive_rate": 0.0129,
+          "calibration_error": 0.0003
+        },
+        {
+          "bin_idx": 8,
+          "bin_range": "[0.0134, 0.0175]",
+          "count": 23312,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0152,
+          "observed_positive_rate": 0.0163,
+          "calibration_error": 0.001
+        },
+        {
+          "bin_idx": 9,
+          "bin_range": "[0.0175, 0.0286]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0218,
+          "observed_positive_rate": 0.0264,
+          "calibration_error": 0.0046
+        },
+        {
+          "bin_idx": 10,
+          "bin_range": "[0.0286, 0.3688]",
+          "count": 23313,
+          "pct_of_total": 10.0,
+          "mean_pred_prob": 0.0739,
+          "observed_positive_rate": 0.0851,
+          "calibration_error": 0.0112
+        }
+      ]
+    }
+  },
+  "paired_bootstrap_comparison": {
+    "n_bootstraps": 1000,
+    "seed": 42,
+    "results": {
+      "p_xgb": {
+        "comparator_name": "XGBoost",
+        "mean_delta_auprc": -0.0009,
+        "std_delta_auprc": 0.0051,
+        "ci_95_delta_auprc": [
+          -0.0113,
+          0.0084
+        ],
+        "includes_zero_auprc": true,
+        "statistically_superior_auprc": false,
+        "mean_delta_auroc": 0.0068,
+        "std_delta_auroc": 0.0041,
+        "ci_95_delta_auroc": [
+          -0.0018,
+          0.0146
+        ],
+        "includes_zero_auroc": true,
+        "statistically_superior_auroc": false
+      },
+      "p_gru": {
+        "comparator_name": "PyTorch GRU",
+        "mean_delta_auprc": 0.0148,
+        "std_delta_auprc": 0.0064,
+        "ci_95_delta_auprc": [
+          0.002,
+          0.0276
+        ],
+        "includes_zero_auprc": false,
+        "statistically_superior_auprc": true,
+        "mean_delta_auroc": 0.0088,
+        "std_delta_auroc": 0.0036,
+        "ci_95_delta_auroc": [
+          0.0014,
+          0.0158
+        ],
+        "includes_zero_auroc": false,
+        "statistically_superior_auroc": true
+      },
+      "p_lr": {
+        "comparator_name": "Logistic Regression",
+        "mean_delta_auprc": 0.0188,
+        "std_delta_auprc": 0.0056,
+        "ci_95_delta_auprc": [
+          0.0079,
+          0.0297
+        ],
+        "includes_zero_auprc": false,
+        "statistically_superior_auprc": true,
+        "mean_delta_auroc": 0.0633,
+        "std_delta_auroc": 0.0071,
+        "ci_95_delta_auroc": [
+          0.049,
+          0.0773
+        ],
+        "includes_zero_auroc": false,
+        "statistically_superior_auroc": true
+      }
+    }
+  }
+}
