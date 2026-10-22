@@ -39,7 +39,7 @@ python -m src.server --port 8765
 uvicorn api.main:app --port 8000 --reload
 
 # 3. Start the Next.js dashboard (default port 3000)
-cd dashboard && npm run dev
+cd dashboard && bun dev
 
 # 4. Run automated acceptance test suite
 python -m tests.run_tests
